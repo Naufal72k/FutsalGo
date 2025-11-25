@@ -5,28 +5,24 @@ import java.awt.*;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 
-public class LoginFrame extends JFrame {
+public class LoginFrame extends JPanel {
    private JTextField usernameField;
    private JPasswordField passwordField;
    private JButton loginButton, registerButton;
    private UserService userService;
    private Tema ini = new Tema();
+   private FutsalManagementApp app;
 
-   public LoginFrame() {
+   public LoginFrame(FutsalManagementApp app) {
+      this.app = app;
+
       userService = new UserService();
-      initializeUI();
-   }
-
-   private void initializeUI() {
-      setTitle("Futsal Management - Login");
-      setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-      setSize(1280, 720);
-      setLocationRelativeTo(null);
-      setResizable(false);
       
       // Panel utama
       JPanel mainPanel = new JPanel(new BorderLayout());
       mainPanel.setBackground(Color.BLACK);
+      mainPanel.setPreferredSize(new Dimension(ini.lebar, ini.tinggi)); 
+
       add(mainPanel);
 
       // pake layered pane biar bisa di tumpuk
@@ -42,10 +38,10 @@ public class LoginFrame extends JFrame {
       backgroundLabel.setBounds(0, 0, ini.lebar, 200);
 
       // teks Header
-      JLabel headerText = new JLabel("RENTAL PS RIJAL");
+      JLabel headerText = new JLabel("Futsal-GO");
       headerText.setFont(new Font("Arial", Font.BOLD, 70));
       headerText.setForeground(Color.WHITE);
-      headerText.setBounds(450, 50, 1000, 100);
+      headerText.setBounds(500, 50, 1000, 100);
 
       // tumpuk dua komponen di layered pane
       headerLayeredPane.add(backgroundLabel, Integer.valueOf(0));
@@ -56,7 +52,7 @@ public class LoginFrame extends JFrame {
       JPanel loginBox = new JPanel();
       loginBox.setLayout(new BoxLayout(loginBox, BoxLayout.Y_AXIS));
       loginBox.setOpaque(false);
-      loginBox.setBorder(BorderFactory.createEmptyBorder(150, 0, 100, 0));
+      loginBox.setBorder(BorderFactory.createEmptyBorder(50, 0, 100, 0));
 
       // Title
       JLabel titleLabel = new JLabel("Login to Futsal Management", JLabel.CENTER);
@@ -66,36 +62,59 @@ public class LoginFrame extends JFrame {
       titleLabel.setBorder(BorderFactory.createEmptyBorder(0, 0, 30, 0));
 
       // Form Panel
-      JPanel formPanel = new JPanel(new GridLayout(2, 2, 10, 15));
+      JPanel formPanel = new JPanel();
       formPanel.setOpaque(false);
-      formPanel.setMaximumSize(new Dimension(380, 100));
+      formPanel.setLayout(new BoxLayout(formPanel, BoxLayout.Y_AXIS));
+      formPanel.setMaximumSize(new Dimension(350, 200));
+
+      // Username Row
+      JPanel usernameRow = new JPanel();
+      usernameRow.setOpaque(false);
+      usernameRow.setLayout(new BoxLayout(usernameRow, BoxLayout.X_AXIS));
 
       JLabel usernameLabel = new JLabel("Username:");
       usernameLabel.setFont(new Font(ini.font, Font.BOLD, 14));
       usernameLabel.setForeground(Color.white);
+      usernameLabel.setPreferredSize(new Dimension(100, 30)); // lebar label biar rata kiri
 
       usernameField = new JTextField();
+      usernameField.setMaximumSize(new Dimension(Integer.MAX_VALUE, 35));
       usernameField.setFont(new Font(ini.font, Font.BOLD, 14));
-      usernameField.setForeground(Color.white);
+      usernameField.setForeground(Color.black);
       usernameField.setBackground(Color.decode(ini.warna_utama_lembut));
       usernameField.setBorder(new LineBorder(Color.decode(ini.warna_isi), 1));
-      usernameField.setCaretColor(Color.decode(ini.warna_isi));
+      usernameField.setCaretColor(Color.decode(ini.warna_utama));
+
+      usernameRow.add(usernameLabel);
+      usernameRow.add(Box.createRigidArea(new Dimension(10, 0))); // X-axis gap
+      usernameRow.add(usernameField);
+
+      // Password
+      JPanel passwordRow = new JPanel();
+      passwordRow.setOpaque(false);
+      passwordRow.setLayout(new BoxLayout(passwordRow, BoxLayout.X_AXIS));
 
       JLabel passwordLabel = new JLabel("Password:");
       passwordLabel.setFont(new Font(ini.font, Font.BOLD, 14));
       passwordLabel.setForeground(Color.white);
+      passwordLabel.setPreferredSize(new Dimension(100, 30));
 
       passwordField = new JPasswordField();
+      passwordField.setMaximumSize(new Dimension(Integer.MAX_VALUE, 35));
       passwordField.setFont(new Font(ini.font, Font.BOLD, 14));
-      passwordField.setForeground(Color.white);
+      passwordField.setForeground(Color.black);
       passwordField.setBackground(Color.decode(ini.warna_utama_lembut));
       passwordField.setBorder(new LineBorder(Color.decode(ini.warna_isi), 1));
       passwordField.setCaretColor(Color.decode(ini.warna_isi));
 
-      formPanel.add(usernameLabel);
-      formPanel.add(usernameField);
-      formPanel.add(passwordLabel);
-      formPanel.add(passwordField);
+      passwordRow.add(passwordLabel);
+      passwordRow.add(Box.createRigidArea(new Dimension(10, 0)));
+      passwordRow.add(passwordField);
+
+      // Add rows to the form
+      formPanel.add(usernameRow);
+      formPanel.add(Box.createRigidArea(new Dimension(0, 15))); 
+      formPanel.add(passwordRow);
 
       // Button Panel
       JPanel buttonPanel = new JPanel(new FlowLayout());
@@ -193,7 +212,6 @@ public class LoginFrame extends JFrame {
                         new UserDashboardFrame(user).setVisible(true);
                      }
 
-                     dispose(); // Close login window
                   } else {
                      JOptionPane.showMessageDialog(LoginFrame.this,
                            "Invalid username or password",
@@ -207,6 +225,6 @@ public class LoginFrame extends JFrame {
    }
 
    private void openRegisterFrame() {
-      new RegisterFrame(this).setVisible(true);
+      app.showRegister();
    }
 }

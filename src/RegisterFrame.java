@@ -2,29 +2,22 @@ import javax.swing.*;
 import javax.swing.border.LineBorder;
 import java.awt.*;
 
-public class RegisterFrame extends JFrame {
+public class RegisterFrame extends JPanel {
    private JTextField usernameField, emailField;
    private JPasswordField passwordField, confirmPasswordField;
    private JButton registerButton, backButton;
    private UserService userService;
-   private LoginFrame loginFrame;
    private Tema ini = new Tema();
+   private FutsalManagementApp app;
 
-   public RegisterFrame(LoginFrame loginFrame) {
-      this.loginFrame = loginFrame;
+   public RegisterFrame(FutsalManagementApp app) {
+      this.app = app;
       userService = new UserService();
-      initializeUI();
-   }
-
-   private void initializeUI() {
-      setTitle("Futsal Management - Register");
-      setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
-      setSize(1280, 720);
-      setLocationRelativeTo(null);
-      setResizable(false);
 
       JPanel mainPanel = new JPanel(new BorderLayout());
       mainPanel.setBackground(Color.BLACK);
+      mainPanel.setPreferredSize(new Dimension(ini.lebar, ini.tinggi)); 
+
       add(mainPanel);
 
       // HEADER SAMA DENGAN LOGIN
@@ -32,16 +25,17 @@ public class RegisterFrame extends JFrame {
       headerLayeredPane.setPreferredSize(new Dimension(ini.tinggi, 200));
 
       JLabel backgroundLabel = new JLabel(new ImageIcon(
-            new ImageIcon("assets/images/img-header.png")
-               .getImage()
-               .getScaledInstance(ini.lebar, 200, Image.SCALE_SMOOTH)
+               new ImageIcon("assets/images/img-header.png")
+                     .getImage()
+                     .getScaledInstance(ini.lebar, 200, Image.SCALE_SMOOTH)
       ));
       backgroundLabel.setBounds(0, 0, ini.lebar, 200);
 
-      JLabel headerText = new JLabel("RENTAL PS RIJAL");
+      // teks Header
+      JLabel headerText = new JLabel("Futsal-GO");
       headerText.setFont(new Font("Arial", Font.BOLD, 70));
       headerText.setForeground(Color.WHITE);
-      headerText.setBounds(450, 50, 1000, 100);
+      headerText.setBounds(500, 50, 1000, 100);
 
       headerLayeredPane.add(backgroundLabel, Integer.valueOf(0));
       headerLayeredPane.add(headerText, Integer.valueOf(1));
@@ -51,7 +45,7 @@ public class RegisterFrame extends JFrame {
       JPanel registerBox = new JPanel();
       registerBox.setLayout(new BoxLayout(registerBox, BoxLayout.Y_AXIS));
       registerBox.setOpaque(false);
-      registerBox.setBorder(BorderFactory.createEmptyBorder(80, 0, 50, 0));
+      registerBox.setBorder(BorderFactory.createEmptyBorder(50, 0, 50, 0));
 
       JLabel titleLabel = new JLabel("Create New Account", JLabel.CENTER);
       titleLabel.setFont(new Font(ini.font, Font.BOLD, 32));
@@ -59,59 +53,109 @@ public class RegisterFrame extends JFrame {
       titleLabel.setAlignmentX(Component.CENTER_ALIGNMENT);
       titleLabel.setBorder(BorderFactory.createEmptyBorder(0, 0, 30, 0));
 
-      JPanel formPanel = new JPanel(new GridLayout(4, 2, 10, 15));
+      // FORM PANEL
+      JPanel formPanel = new JPanel();
       formPanel.setOpaque(false);
-      formPanel.setMaximumSize(new Dimension(460, 150));
+      formPanel.setLayout(new BoxLayout(formPanel, BoxLayout.Y_AXIS));
+      formPanel.setMaximumSize(new Dimension(460, 300));
+
+      // Username 
+      JPanel usernameRow = new JPanel();
+      usernameRow.setOpaque(false);
+      usernameRow.setLayout(new BoxLayout(usernameRow, BoxLayout.X_AXIS));
 
       JLabel usernameLabel = new JLabel("Username:");
       usernameLabel.setFont(new Font(ini.font, Font.BOLD, 14));
       usernameLabel.setForeground(Color.white);
+      usernameLabel.setPreferredSize(new Dimension(150, 30)); // Width biar rata
 
       usernameField = new JTextField();
+      usernameField.setMaximumSize(new Dimension(Integer.MAX_VALUE, 35));
       usernameField.setFont(new Font(ini.font, Font.BOLD, 14));
-      usernameField.setForeground(Color.white);
+      usernameField.setForeground(Color.black);
       usernameField.setBackground(Color.decode(ini.warna_utama_lembut));
       usernameField.setBorder(new LineBorder(Color.decode(ini.warna_isi), 1));
       usernameField.setCaretColor(Color.decode(ini.warna_isi));
 
+      usernameRow.add(usernameLabel);
+      usernameRow.add(Box.createRigidArea(new Dimension(15, 0))); // X Gap
+      usernameRow.add(usernameField);
+
+      // Email 
+      JPanel emailRow = new JPanel();
+      emailRow.setOpaque(false);
+      emailRow.setLayout(new BoxLayout(emailRow, BoxLayout.X_AXIS));
+
       JLabel emailLabel = new JLabel("Email:");
       emailLabel.setFont(new Font(ini.font, Font.BOLD, 14));
       emailLabel.setForeground(Color.white);
+      emailLabel.setPreferredSize(new Dimension(150, 30));
 
       emailField = new JTextField();
+      emailField.setMaximumSize(new Dimension(Integer.MAX_VALUE, 35));
       emailField.setFont(new Font(ini.font, Font.BOLD, 14));
-      emailField.setForeground(Color.white);
+      emailField.setForeground(Color.black);
       emailField.setBackground(Color.decode(ini.warna_utama_lembut));
       emailField.setBorder(new LineBorder(Color.decode(ini.warna_isi), 1));
       emailField.setCaretColor(Color.decode(ini.warna_isi));
 
+      emailRow.add(emailLabel);
+      emailRow.add(Box.createRigidArea(new Dimension(15, 0)));
+      emailRow.add(emailField);
+
+      // Password
+      JPanel passwordRow = new JPanel();
+      passwordRow.setOpaque(false);
+      passwordRow.setLayout(new BoxLayout(passwordRow, BoxLayout.X_AXIS));
+
       JLabel passwordLabel = new JLabel("Password:");
       passwordLabel.setFont(new Font(ini.font, Font.BOLD, 14));
       passwordLabel.setForeground(Color.white);
+      passwordLabel.setPreferredSize(new Dimension(150, 30));
 
       passwordField = new JPasswordField();
+      passwordField.setMaximumSize(new Dimension(Integer.MAX_VALUE, 35));
       passwordField.setFont(new Font(ini.font, Font.BOLD, 14));
-      passwordField.setForeground(Color.white);
+      passwordField.setForeground(Color.black);
       passwordField.setBackground(Color.decode(ini.warna_utama_lembut));
       passwordField.setBorder(new LineBorder(Color.decode(ini.warna_isi), 1));
       passwordField.setCaretColor(Color.decode(ini.warna_isi));
 
+      passwordRow.add(passwordLabel);
+      passwordRow.add(Box.createRigidArea(new Dimension(15, 0)));
+      passwordRow.add(passwordField);
+
+      // Confirm Password 
+      JPanel confirmPasswordRow = new JPanel();
+      confirmPasswordRow.setOpaque(false);
+      confirmPasswordRow.setLayout(new BoxLayout(confirmPasswordRow, BoxLayout.X_AXIS));
+
       JLabel confirmPasswordLabel = new JLabel("Confirm Password:");
       confirmPasswordLabel.setFont(new Font(ini.font, Font.BOLD, 14));
       confirmPasswordLabel.setForeground(Color.white);
+      confirmPasswordLabel.setPreferredSize(new Dimension(150, 30));
 
       confirmPasswordField = new JPasswordField();
+      confirmPasswordField.setMaximumSize(new Dimension(Integer.MAX_VALUE, 35));
       confirmPasswordField.setFont(new Font(ini.font, Font.BOLD, 14));
-      confirmPasswordField.setForeground(Color.white);
+      confirmPasswordField.setForeground(Color.black);
       confirmPasswordField.setBackground(Color.decode(ini.warna_utama_lembut));
       confirmPasswordField.setBorder(new LineBorder(Color.decode(ini.warna_isi), 1));
       confirmPasswordField.setCaretColor(Color.decode(ini.warna_isi));
 
-      formPanel.add(usernameLabel); formPanel.add(usernameField);
-      formPanel.add(emailLabel); formPanel.add(emailField);
-      formPanel.add(passwordLabel); formPanel.add(passwordField);
-      formPanel.add(confirmPasswordLabel); formPanel.add(confirmPasswordField);
+      confirmPasswordRow.add(confirmPasswordLabel);
+      confirmPasswordRow.add(Box.createRigidArea(new Dimension(15, 0)));
+      confirmPasswordRow.add(confirmPasswordField);
 
+      formPanel.add(usernameRow);
+      formPanel.add(Box.createRigidArea(new Dimension(0, 15)));
+      formPanel.add(emailRow);
+      formPanel.add(Box.createRigidArea(new Dimension(0, 15)));
+      formPanel.add(passwordRow);
+      formPanel.add(Box.createRigidArea(new Dimension(0, 15)));
+      formPanel.add(confirmPasswordRow);
+
+      // BUTTON 
       JPanel buttonPanel = new JPanel(new FlowLayout());
       buttonPanel.setOpaque(false);
       buttonPanel.setBorder(BorderFactory.createEmptyBorder(20, 0, 0, 0));
@@ -147,8 +191,7 @@ public class RegisterFrame extends JFrame {
    private void setupEventListeners() {
       registerButton.addActionListener(e -> registerUser());
       backButton.addActionListener(e -> {
-         dispose();
-         loginFrame.setVisible(true);
+         app.showLogin();
       });
    }
 
@@ -194,8 +237,7 @@ public class RegisterFrame extends JFrame {
          SwingUtilities.invokeLater(() -> {
             if (success) {
                JOptionPane.showMessageDialog(RegisterFrame.this, "Registration Success!", "Success", JOptionPane.INFORMATION_MESSAGE);
-               dispose();
-               loginFrame.setVisible(true);
+               app.showLogin();
             } else {
                JOptionPane.showMessageDialog(RegisterFrame.this, "Registration failed", "Error", JOptionPane.ERROR_MESSAGE);
             }
