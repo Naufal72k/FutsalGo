@@ -38,7 +38,7 @@ public class AdminDashboardFrame extends JFrame {
       logoutButton.setBorderPainted(false);
 
       logoutButton.addActionListener(e -> {
-         new LoginFrame().setVisible(true);
+         // new LoginFrame().setVisible(true);
          dispose();
       });
 
