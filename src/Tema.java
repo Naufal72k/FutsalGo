@@ -4,10 +4,9 @@ public class Tema {
 
     // THEME 1 - Sporty Green
     final public String warna1_utama            = "#0B6623";   // Dark Green
-    final public String warna1_utama_gelap      = "#1E1E1E";   // Dark Gray
     final public String warna1_utama_lembut     = "#E0E0E0";   // Dark Gray
     final public String warna1_isi              = "#32CD32";   // Neon Green (Accent)
-    final public String warna1_pelengkap        = "#E0E0E0";   // Light Gray
+    final public String warna1_pelengkap        = "#1E1E1E";   // Light Gray
     
     // THEME 2 - Minimalist Navy Lime
     final public String warna2_utama            = "#0A2A43";   // Navy Blue
@@ -22,10 +21,10 @@ public class Tema {
     final public String warna3_pelengkap        = "#FFFFFF";   // White
     
     // yang di pake
-    final public String warna_utama            = warna1_utama;   // Black
-    final public String warna_utama_lembut     = warna1_utama_lembut;   // Dark Gray
-    final public String warna_isi              = warna1_isi;   // Yellow Gold
-    final public String warna_pelengkap        = warna1_pelengkap;   // White
+    final public String warna_utama            = warna2_utama;   
+    final public String warna_utama_lembut     = warna2_utama_lembut;   
+    final public String warna_isi              = warna2_isi;   
+    final public String warna_pelengkap        = warna1_pelengkap;   
     
     
     // font

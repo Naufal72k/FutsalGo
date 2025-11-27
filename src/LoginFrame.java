@@ -20,7 +20,7 @@ public class LoginFrame extends JPanel {
       
       // Panel utama
       JPanel mainPanel = new JPanel(new BorderLayout());
-      mainPanel.setBackground(Color.BLACK);
+      mainPanel.setBackground(Color.decode(ini.warna_pelengkap));
       mainPanel.setPreferredSize(new Dimension(ini.lebar, ini.tinggi)); 
 
       add(mainPanel);
@@ -80,7 +80,7 @@ public class LoginFrame extends JPanel {
       usernameField = new JTextField();
       usernameField.setMaximumSize(new Dimension(Integer.MAX_VALUE, 35));
       usernameField.setFont(new Font(ini.font, Font.BOLD, 14));
-      usernameField.setForeground(Color.black);
+      usernameField.setForeground(Color.WHITE);
       usernameField.setBackground(Color.decode(ini.warna_utama_lembut));
       usernameField.setBorder(new LineBorder(Color.decode(ini.warna_isi), 1));
       usernameField.setCaretColor(Color.decode(ini.warna_utama));
@@ -102,7 +102,7 @@ public class LoginFrame extends JPanel {
       passwordField = new JPasswordField();
       passwordField.setMaximumSize(new Dimension(Integer.MAX_VALUE, 35));
       passwordField.setFont(new Font(ini.font, Font.BOLD, 14));
-      passwordField.setForeground(Color.black);
+      passwordField.setForeground(Color.WHITE);
       passwordField.setBackground(Color.decode(ini.warna_utama_lembut));
       passwordField.setBorder(new LineBorder(Color.decode(ini.warna_isi), 1));
       passwordField.setCaretColor(Color.decode(ini.warna_isi));
