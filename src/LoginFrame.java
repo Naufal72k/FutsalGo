@@ -207,7 +207,7 @@ public class LoginFrame extends JPanel {
 
                      // Redirect berdasarkan user level
                      if ("admin".equals(user.getUserLevel())) {
-                        new AdminDashboardFrame(user).setVisible(true);
+                        new AdminDashboard().setVisible(true);
                      } else {
                         new UserDashboardFrame(user).setVisible(true);
                      }

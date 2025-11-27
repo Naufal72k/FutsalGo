@@ -157,9 +157,9 @@ public class AddEditFieldDialog extends JDialog {
                      JOptionPane.INFORMATION_MESSAGE);
 
                // Refresh panel utama
-               if (parentPanel instanceof AdminDashboardFrame.ManageFieldsPanel) {
-                  ((AdminDashboardFrame.ManageFieldsPanel) parentPanel).loadFieldsData();
-               }
+               // if (parentPanel instanceof AdminDashboard.ManageFieldsPanel) {
+               //    ((AdminDashboard.ManageFieldsPanel) parentPanel).loadFieldsData();
+               // }
 
                dispose();
             } else {
