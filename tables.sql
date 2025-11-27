@@ -1,10 +1,10 @@
 -- Copas aja ke mysql terminal
 
-CREATE DATABASE futsal_management;
+CREATE DATABASE IF NOT EXISTS futsal_management;
 USE futsal_management;
 
 -- Tabel users
-CREATE TABLE users (
+CREATE TABLE IF NOT EXISTS users (
     id INT AUTO_INCREMENT PRIMARY KEY,
     username VARCHAR(50) UNIQUE NOT NULL,
     password VARCHAR(255) NOT NULL,
@@ -14,7 +14,7 @@ CREATE TABLE users (
 );
 
 -- Tabel futsal_fields
-CREATE TABLE futsal_fields (
+CREATE TABLE IF NOT EXISTS futsal_fields (
     id INT AUTO_INCREMENT PRIMARY KEY,
     field_name VARCHAR(100) NOT NULL,
     open_time TIME NOT NULL,
@@ -41,7 +41,7 @@ INSERT INTO users (username, password, email, user_level)
 VALUES ('user1', SHA2('user123', 256), 'user1@futsal.com', 'user');
 
 
-CREATE TABLE bookings (
+CREATE TABLE IF NOT EXISTS bookings (
     id INT AUTO_INCREMENT PRIMARY KEY,
     user_id INT NOT NULL,
     field_id INT NOT NULL,
