@@ -23,7 +23,6 @@ public class FutsalField {
       this.updatedAt = updatedAt;
    }
 
-   // Getters and Setters
    public int getId() {
       return id;
    }
@@ -86,5 +85,10 @@ public class FutsalField {
 
    public void setUpdatedAt(String updatedAt) {
       this.updatedAt = updatedAt;
+   }
+
+   @Override
+   public String toString() {
+      return fieldName;
    }
 }
