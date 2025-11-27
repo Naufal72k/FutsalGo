@@ -39,3 +39,18 @@ VALUES ('admin', SHA2('admin123', 256), 'admin@futsal.com', 'admin');
 
 INSERT INTO users (username, password, email, user_level) 
 VALUES ('user1', SHA2('user123', 256), 'user1@futsal.com', 'user');
+
+
+CREATE TABLE bookings (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    user_id INT NOT NULL,
+    field_id INT NOT NULL,
+    booking_date DATE NOT NULL,
+    start_time TIME NOT NULL,
+    end_time TIME NOT NULL,
+    total_price DECIMAL(10,2) NOT NULL,
+    status ENUM('PENDING', 'PAID', 'CANCELLED') DEFAULT 'PENDING',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+    FOREIGN KEY (field_id) REFERENCES futsal_fields(id) ON DELETE CASCADE
+);
