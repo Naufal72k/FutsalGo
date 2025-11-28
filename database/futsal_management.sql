@@ -1,4 +1,5 @@
 -- Copas aja ke mysql terminal
+-- atau gunakan tools phpMyAdmin langsung import file ini
 
 CREATE DATABASE IF NOT EXISTS futsal_management;
 USE futsal_management;
@@ -25,7 +26,9 @@ CREATE TABLE IF NOT EXISTS futsal_fields (
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 );
 
-
+-- hapus bagian ini jika sudah pernah di run sebelumnya
+TRUNCATE TABLE futsal_fields;
+TRUNCATE TABLE users;
 
 -- Insert sample data
 INSERT INTO futsal_fields (field_name, open_time, close_time, price_per_session) VALUES
@@ -35,10 +38,10 @@ INSERT INTO futsal_fields (field_name, open_time, close_time, price_per_session)
 
 -- Insert admin default
 INSERT INTO users (username, password, email, user_level)
-VALUES ('admin', SHA2('admin123', 256), 'admin@futsal.com', 'admin');
+VALUES ('admin', 'admin123', 'admin@futsal.com', 'admin');
 
 INSERT INTO users (username, password, email, user_level) 
-VALUES ('user1', SHA2('user123', 256), 'user1@futsal.com', 'user');
+VALUES ('user1', 'user123', 'user1@futsal.com', 'user');
 
 
 CREATE TABLE IF NOT EXISTS bookings (
