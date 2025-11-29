@@ -2,20 +2,27 @@ public class Booking {
     private int id;
     private int userId;
     private int fieldId;
+
+    // UPDATE: Variabel baru untuk menampung Nama User & Nama Lapangan
+    // Ini berguna agar di tabel Admin kita bisa menampilkan "Budi" bukannya "User
+    // ID: 2"
+    private String userName;
+    private String fieldName;
+
     private String bookingDate;
     private String startTime;
     private String endTime;
     private double totalPrice;
 
-    // UPDATE: Default status langsung "PAID"
-    // karena user wajib lewati Scan QR sebelum objek ini dibuat.
+    // Default status
     private String status = "PAID";
-
     private String createdAt;
 
     public Booking() {
     }
 
+    // Constructor Lama (Dipertahankan agar tidak error di DatabaseConfig yang belum
+    // diupdate)
     public Booking(int id, int userId, int fieldId, String bookingDate, String startTime,
             String endTime, double totalPrice, String status, String createdAt) {
         this.id = id;
@@ -28,6 +35,43 @@ public class Booking {
         this.status = status;
         this.createdAt = createdAt;
     }
+
+    // Constructor Baru (Opsional: Mencakup userName dan fieldName)
+    public Booking(int id, int userId, String userName, int fieldId, String fieldName,
+            String bookingDate, String startTime, String endTime, double totalPrice,
+            String status, String createdAt) {
+        this.id = id;
+        this.userId = userId;
+        this.userName = userName;
+        this.fieldId = fieldId;
+        this.fieldName = fieldName;
+        this.bookingDate = bookingDate;
+        this.startTime = startTime;
+        this.endTime = endTime;
+        this.totalPrice = totalPrice;
+        this.status = status;
+        this.createdAt = createdAt;
+    }
+
+    // --- GETTERS & SETTERS BARU ---
+
+    public String getUserName() {
+        return userName;
+    }
+
+    public void setUserName(String userName) {
+        this.userName = userName;
+    }
+
+    public String getFieldName() {
+        return fieldName;
+    }
+
+    public void setFieldName(String fieldName) {
+        this.fieldName = fieldName;
+    }
+
+    // --- GETTERS & SETTERS LAMA ---
 
     public int getId() {
         return id;

@@ -20,7 +20,6 @@ public class DashboardUser extends JPanel {
     // Layout Manager
     private CardLayout cardLayout;
     private JPanel mainContentPanel;
-    private JLabel pageTitleLabel;
 
     // Menu Buttons
     private ModernMenuButton btnBooking;
@@ -38,6 +37,9 @@ public class DashboardUser extends JPanel {
     private List<String> selectedTimeSlots = new ArrayList<>();
     private List<JToggleButton> timeButtons = new ArrayList<>();
 
+    // Komponen Stats (Untuk Update Realtime)
+    private JLabel lblTotalPaidBookings;
+
     public DashboardUser(App app, User user) {
         this.currentUser = user;
         this.app = app;
@@ -51,16 +53,19 @@ public class DashboardUser extends JPanel {
         // Sidebar
         add(createSidebar(), BorderLayout.WEST);
 
-        // Konten Area
+        // Konten Area Utama
         JPanel contentArea = new JPanel(new BorderLayout());
         contentArea.setBackground(Color.decode(ini.warna_pelengkap));
-        contentArea.add(createHeader(), BorderLayout.NORTH);
+
+        // HAPUS HEADER LAMA (createHeader) AGAR LEBIH BERSIH
+        // Kita akan memasukkan header besar langsung ke dalam halaman Booking
 
         // Body Dinamis
         cardLayout = new CardLayout();
         mainContentPanel = new JPanel(cardLayout);
         mainContentPanel.setOpaque(false);
-        mainContentPanel.setBorder(new EmptyBorder(20, 20, 20, 20));
+        // Padding lebih besar biar lega
+        mainContentPanel.setBorder(new EmptyBorder(10, 30, 30, 30));
 
         mainContentPanel.add(createBookingPage(), "BOOKING");
         mainContentPanel.add(createHistoryPage(), "HISTORY");
@@ -91,7 +96,7 @@ public class DashboardUser extends JPanel {
         btnBooking = new ModernMenuButton("Book Field", true);
         btnHistory = new ModernMenuButton("My History", false);
 
-        // UPDATE: Custom Style untuk Tombol Logout (Merah Kotak)
+        // Tombol Logout
         JButton btnLogout = new JButton("Logout");
         btnLogout.setFont(new Font(ini.font, Font.BOLD, 16));
         btnLogout.setForeground(Color.WHITE);
@@ -99,93 +104,115 @@ public class DashboardUser extends JPanel {
         btnLogout.setFocusPainted(false);
         btnLogout.setBorderPainted(false);
         btnLogout.setOpaque(true);
-        btnLogout.setMaximumSize(new Dimension(220, 45));
+        // Pastikan dimensi maksimum cukup lebar tapi tidak memenuhi layar
+        btnLogout.setMaximumSize(new Dimension(200, 45));
+        // ALIGNMENT CENTER PENTING DI SINI
         btnLogout.setAlignmentX(Component.CENTER_ALIGNMENT);
         btnLogout.setCursor(new Cursor(Cursor.HAND_CURSOR));
 
-        // Tambahkan sedikit efek hover sederhana untuk logout
         btnLogout.addMouseListener(new java.awt.event.MouseAdapter() {
             public void mouseEntered(java.awt.event.MouseEvent evt) {
-                btnLogout.setBackground(new Color(192, 57, 43)); // Merah lebih gelap
+                btnLogout.setBackground(new Color(192, 57, 43));
             }
 
             public void mouseExited(java.awt.event.MouseEvent evt) {
-                btnLogout.setBackground(new Color(231, 76, 60)); // Kembali merah cerah
+                btnLogout.setBackground(new Color(231, 76, 60));
             }
         });
 
         btnBooking.addActionListener(e -> {
             cardLayout.show(mainContentPanel, "BOOKING");
-            pageTitleLabel.setText("Book a Field");
             setActiveButton(btnBooking);
-            updateTimeSlots(); // Refresh grid saat pindah tab
+            refreshUserStats(); // Refresh stats saat balik ke home
+            updateTimeSlots();
         });
 
         btnHistory.addActionListener(e -> {
             cardLayout.show(mainContentPanel, "HISTORY");
-            pageTitleLabel.setText("Transaction History");
             loadHistoryData();
             setActiveButton(btnHistory);
         });
 
         btnLogout.addActionListener(e -> app.showLogin());
 
+        // Susun Menu
         menuContainer.add(btnBooking);
         menuContainer.add(Box.createVerticalStrut(10));
         menuContainer.add(btnHistory);
 
         sidebar.add(logoLabel);
         sidebar.add(menuContainer);
-        sidebar.add(Box.createVerticalGlue());
-        sidebar.add(btnLogout); // Tambahkan tombol logout yang baru
+        sidebar.add(Box.createVerticalGlue()); // Dorong logout ke bawah
+        sidebar.add(btnLogout);
+        sidebar.add(Box.createVerticalStrut(20)); // Sedikit jarak dari bawah
 
         return sidebar;
     }
 
-    private JPanel createHeader() {
-        JPanel header = new JPanel(new BorderLayout());
-        header.setBackground(Color.decode(ini.warna_pelengkap));
-        header.setBorder(new EmptyBorder(20, 30, 0, 30));
-        header.setPreferredSize(new Dimension(1020, 70));
-
-        pageTitleLabel = new JLabel("Book a Field");
-        pageTitleLabel.setFont(new Font(ini.font, Font.BOLD, 24));
-        pageTitleLabel.setForeground(Color.DARK_GRAY);
-
-        JLabel userLabel = new JLabel("Hi, " + currentUser.getUsername());
-        userLabel.setFont(new Font(ini.font, Font.PLAIN, 16));
-        userLabel.setForeground(Color.GRAY);
-
-        header.add(pageTitleLabel, BorderLayout.WEST);
-        header.add(userLabel, BorderLayout.EAST);
-
-        return header;
-    }
-
+    // --- RE-DESIGNED BOOKING PAGE (MIRIP DASHBOARD ADMIN) ---
     private JPanel createBookingPage() {
-        JPanel pagePanel = new JPanel(new BorderLayout(20, 20));
+        // Gunakan Panel wrapper dengan BoxLayout Y_AXIS agar bisa scroll jika perlu
+        JPanel pagePanel = new JPanel();
+        pagePanel.setLayout(new BoxLayout(pagePanel, BoxLayout.Y_AXIS));
         pagePanel.setOpaque(false);
 
-        // Info Cards
+        // 1. HEADER BESAR (Welcome Text + Date)
+        JPanel headerPanel = new JPanel();
+        headerPanel.setLayout(new BoxLayout(headerPanel, BoxLayout.Y_AXIS));
+        headerPanel.setOpaque(false);
+        headerPanel.setAlignmentX(Component.LEFT_ALIGNMENT);
+        headerPanel.setBorder(new EmptyBorder(20, 0, 20, 0));
+
+        JLabel welcomeLabel = new JLabel("Welcome Back, " + currentUser.getUsername());
+        welcomeLabel.setFont(new Font(ini.font, Font.BOLD, 28));
+        welcomeLabel.setForeground(Color.DARK_GRAY);
+        welcomeLabel.setAlignmentX(Component.LEFT_ALIGNMENT);
+
+        JLabel dateLabel = new JLabel(new SimpleDateFormat("EEEE, dd MMMM yyyy").format(new Date()));
+        dateLabel.setFont(new Font(ini.font, Font.PLAIN, 14));
+        dateLabel.setForeground(Color.GRAY);
+        dateLabel.setAlignmentX(Component.LEFT_ALIGNMENT);
+
+        headerPanel.add(welcomeLabel);
+        headerPanel.add(Box.createRigidArea(new Dimension(0, 5)));
+        headerPanel.add(dateLabel);
+
+        // 2. STATS GRID (KARTU BESAR)
         JPanel statsPanel = new JPanel(new GridLayout(1, 3, 20, 0));
         statsPanel.setOpaque(false);
-        statsPanel.setPreferredSize(new Dimension(1020, 120));
+        statsPanel.setMaximumSize(new Dimension(2000, 120)); // Tinggi fix
+        statsPanel.setAlignmentX(Component.LEFT_ALIGNMENT);
 
-        statsPanel.add(createInfoCard("Total Bookings", "0", Color.decode("#4e73df")));
-        statsPanel.add(createInfoCard("Active Fields", "3", Color.decode("#1cc88a")));
-        statsPanel.add(createInfoCard("Your Level", "Member", Color.decode("#36b9cc")));
+        // Init label stat
+        lblTotalPaidBookings = new JLabel("Loading...");
 
-        // Booking Form Area
+        // Panggil helper createBigStatCard (Gaya Admin)
+        statsPanel.add(createBigStatCard("Total Paid Bookings", lblTotalPaidBookings, "📅", new Color(52, 152, 219)));
+        statsPanel.add(createBigStatCard("Active Fields", new JLabel("3"), "⚽", new Color(46, 204, 113)));
+        statsPanel.add(createBigStatCard("Your Level", new JLabel("Member"), "⭐", new Color(241, 196, 15)));
+
+        // 3. BOOKING FORM AREA
+        JPanel formWrapper = new JPanel(new BorderLayout());
+        formWrapper.setOpaque(false);
+        formWrapper.setAlignmentX(Component.LEFT_ALIGNMENT);
+        formWrapper.setBorder(new EmptyBorder(30, 0, 0, 0));
+
+        JLabel formTitle = new JLabel("Book a Field Now");
+        formTitle.setFont(new Font(ini.font, Font.BOLD, 20));
+        formTitle.setForeground(Color.DARK_GRAY);
+        formTitle.setBorder(new EmptyBorder(0, 0, 15, 0));
+
         JPanel formCard = createModernCardPanel();
-        formCard.setLayout(new GridBagLayout());
+        formCard.setLayout(new GridBagLayout()); // Kembali ke GridBag untuk form rapi
 
+        // Isi Form
         JPanel formContent = new JPanel(new GridBagLayout());
         formContent.setOpaque(false);
         GridBagConstraints gbc = new GridBagConstraints();
         gbc.fill = GridBagConstraints.HORIZONTAL;
         gbc.insets = new Insets(10, 10, 10, 10);
 
-        // 1. Pilih Lapangan
+        // ... Komponen Form (Sama seperti logika sebelumnya) ...
         JLabel lblField = createLabel("Select Field");
         cmbField = new JComboBox<>();
         styleComboBox(cmbField);
@@ -194,31 +221,28 @@ public class DashboardUser extends JPanel {
             if (f.isActive())
                 cmbField.addItem(f);
 
-        // 2. Pilih Tanggal
         JLabel lblDate = createLabel("Date");
         spinDate = new JSpinner(new SpinnerDateModel());
         spinDate.setEditor(new JSpinner.DateEditor(spinDate, "yyyy-MM-dd"));
         styleSpinner(spinDate);
 
-        // 3. Grid Jadwal
-        JLabel lblTime = createLabel("Select Time Slots (Multi-select allowed)");
-        timeGridPanel = new JPanel(new GridLayout(3, 5, 8, 8)); // 3 Baris x 5 Kolom (15 Jam)
+        JLabel lblTime = createLabel("Select Time Slots (Multi-select)");
+        timeGridPanel = new JPanel(new GridLayout(3, 5, 8, 8));
         timeGridPanel.setOpaque(false);
 
-        // 4. Total Harga
         JLabel lblPrice = createLabel("Total Price");
         JLabel lblPriceValue = new JLabel("Rp 0");
         lblPriceValue.setFont(new Font(ini.font, Font.BOLD, 20));
         lblPriceValue.setForeground(Color.decode(ini.warna_isi));
 
-        // --- Logic Listener ---
+        // Listeners
         cmbField.addActionListener(e -> {
             updateTimeSlots();
             updatePrice(lblPriceValue);
         });
         spinDate.addChangeListener(e -> updateTimeSlots());
 
-        // Layouting Komponen
+        // Layout Form
         gbc.gridx = 0;
         gbc.gridy = 0;
         gbc.weightx = 0.3;
@@ -239,7 +263,6 @@ public class DashboardUser extends JPanel {
         gbc.gridy = 2;
         gbc.gridwidth = 2;
         formContent.add(lblTime, gbc);
-
         gbc.gridx = 0;
         gbc.gridy = 3;
         gbc.gridwidth = 2;
@@ -253,25 +276,47 @@ public class DashboardUser extends JPanel {
         gbc.gridy = 4;
         formContent.add(lblPriceValue, gbc);
 
-        // Tombol Book Now
         JButton btnSubmit = new JButton("Book Now");
         styleActionButton(btnSubmit);
         btnSubmit.addActionListener(e -> processBookingAttempt(lblPriceValue));
 
+        // Masukkan formContent ke card
         GridBagConstraints cardGbc = new GridBagConstraints();
         cardGbc.gridx = 0;
         cardGbc.gridy = 0;
+        cardGbc.weightx = 1.0;
+        cardGbc.fill = GridBagConstraints.HORIZONTAL;
         formCard.add(formContent, cardGbc);
+
         cardGbc.gridy = 1;
         cardGbc.insets = new Insets(20, 0, 0, 0);
+        cardGbc.fill = GridBagConstraints.NONE;
+        cardGbc.anchor = GridBagConstraints.EAST; // Tombol di kanan
         formCard.add(btnSubmit, cardGbc);
 
-        pagePanel.add(statsPanel, BorderLayout.NORTH);
-        pagePanel.add(formCard, BorderLayout.CENTER);
+        formWrapper.add(formTitle, BorderLayout.NORTH);
+        formWrapper.add(formCard, BorderLayout.CENTER);
+
+        // RAKIT SEMUA KE PAGE PANEL
+        pagePanel.add(headerPanel);
+        pagePanel.add(statsPanel);
+        pagePanel.add(formWrapper);
 
         SwingUtilities.invokeLater(this::updateTimeSlots);
+        refreshUserStats(); // Load stats awal
 
         return pagePanel;
+    }
+
+    // --- HELPER: UPDATE REAL STATS ---
+    private void refreshUserStats() {
+        new Thread(() -> {
+            // Panggil method baru countUserPaidBookings
+            int paidCount = bookingService.countUserPaidBookings(currentUser.getId());
+            SwingUtilities.invokeLater(() -> {
+                lblTotalPaidBookings.setText(String.valueOf(paidCount));
+            });
+        }).start();
     }
 
     // --- LOGIC: VISUAL GRID TOMBOL ---
@@ -357,8 +402,13 @@ public class DashboardUser extends JPanel {
 
     private JLabel getPriceLabelFromPanel() {
         try {
-            Container parent = timeGridPanel.getParent();
-            return (JLabel) parent.getComponent(7);
+            // Karena hierarki berubah (GridBag), kita cari manual agak tricky
+            // Cara aman: simpan referensi lblPriceValue di class level jika perlu
+            // Tapi untuk sekarang kita cari parent dari gridPanel -> formContent ->
+            // komponen index terakhir
+            Container formContent = timeGridPanel.getParent();
+            // index terakhir di formContent adalah lblPriceValue (lihat layouting di atas)
+            return (JLabel) formContent.getComponent(formContent.getComponentCount() - 1);
         } catch (Exception e) {
             return null;
         }
@@ -455,7 +505,7 @@ public class DashboardUser extends JPanel {
                 booking.setEndTime(endTimeStr);
                 booking.setTotalPrice(selectedField.getPricePerSession());
 
-                // UPDATE: SET STATUS MENJADI PENDING (Menunggu Admin)
+                // STATUS PENDING
                 booking.setStatus("PENDING");
 
                 boolean success = bookingService.createBooking(booking);
@@ -469,13 +519,13 @@ public class DashboardUser extends JPanel {
             boolean finalSuccess = allSuccess;
             SwingUtilities.invokeLater(() -> {
                 if (finalSuccess) {
-                    // UPDATE: Pesan Sukses Menunggu Admin
                     JOptionPane.showMessageDialog(this,
                             "Booking berhasil! Menunggu konfirmasi Admin.",
                             "Status Pending",
                             JOptionPane.INFORMATION_MESSAGE);
 
                     loadHistoryData();
+                    refreshUserStats(); // UPDATE STATS SETELAH BOOKING
                     cardLayout.show(mainContentPanel, "HISTORY");
                     setActiveButton(btnHistory);
                     updateTimeSlots();
@@ -484,7 +534,6 @@ public class DashboardUser extends JPanel {
                             + String.join(", ", failedSlots)
                             + "\n\nSilakan pilih jam lain.";
                     JOptionPane.showMessageDialog(this, msg, "Gagal Sebagian", JOptionPane.WARNING_MESSAGE);
-
                     loadHistoryData();
                     updateTimeSlots();
                 }
@@ -494,8 +543,19 @@ public class DashboardUser extends JPanel {
 
     // --- Helper UI Methods ---
     private JPanel createHistoryPage() {
+        // Halaman History dibungkus panel agar rapi
+        JPanel pagePanel = new JPanel(new BorderLayout());
+        pagePanel.setOpaque(false);
+
+        // Header simple untuk history
+        JLabel lblTitle = new JLabel("Transaction History");
+        lblTitle.setFont(new Font(ini.font, Font.BOLD, 24));
+        lblTitle.setForeground(Color.DARK_GRAY);
+        lblTitle.setBorder(new EmptyBorder(0, 0, 20, 0));
+        pagePanel.add(lblTitle, BorderLayout.NORTH);
+
         JPanel card = createModernCardPanel();
-        card.setLayout(new BorderLayout(20, 20));
+        card.setLayout(new BorderLayout(0, 0));
         card.setBorder(new EmptyBorder(20, 20, 20, 20));
 
         historyTableModel = new BookingsTableModel();
@@ -520,12 +580,13 @@ public class DashboardUser extends JPanel {
         btnRefresh.setPreferredSize(new Dimension(150, 40));
         btnRefresh.addActionListener(e -> loadHistoryData());
 
-        card.add(new JLabel("Your Previous Matches"), BorderLayout.NORTH);
         card.add(scrollPane, BorderLayout.CENTER);
         card.add(btnRefresh, BorderLayout.SOUTH);
 
+        pagePanel.add(card, BorderLayout.CENTER);
+
         loadHistoryData();
-        return card;
+        return pagePanel;
     }
 
     private void loadHistoryData() {
@@ -593,22 +654,38 @@ public class DashboardUser extends JPanel {
         };
     }
 
-    private JPanel createInfoCard(String title, String value, Color accent) {
-        JPanel card = createModernCardPanel();
-        card.setLayout(new BorderLayout());
-        card.setBorder(new EmptyBorder(15, 20, 15, 20));
+    // METHOD BARU: STYLE CARD SEPERTI ADMIN
+    private JPanel createBigStatCard(String title, JLabel valueLabel, String icon, Color accentColor) {
+        JPanel card = new JPanel(new BorderLayout());
+        card.setBackground(Color.WHITE);
+        // Garis accent di bawah
+        card.setBorder(BorderFactory.createCompoundBorder(
+                BorderFactory.createMatteBorder(0, 0, 4, 0, accentColor),
+                BorderFactory.createEmptyBorder(15, 20, 15, 20)));
+
+        // Icon Area
+        JLabel iconLabel = new JLabel(icon);
+        iconLabel.setFont(new Font("Segoe UI Emoji", Font.PLAIN, 36));
+
+        // Text Area
+        JPanel textPanel = new JPanel();
+        textPanel.setLayout(new BoxLayout(textPanel, BoxLayout.Y_AXIS));
+        textPanel.setBackground(Color.WHITE);
+
         JLabel lblTitle = new JLabel(title);
-        lblTitle.setFont(new Font(ini.font, Font.PLAIN, 14));
+        lblTitle.setFont(new Font(ini.font, Font.BOLD, 12));
         lblTitle.setForeground(Color.GRAY);
-        JLabel lblValue = new JLabel(value);
-        lblValue.setFont(new Font(ini.font, Font.BOLD, 24));
-        lblValue.setForeground(Color.DARK_GRAY);
-        JPanel bar = new JPanel();
-        bar.setBackground(accent);
-        bar.setPreferredSize(new Dimension(5, 40));
-        card.add(lblTitle, BorderLayout.NORTH);
-        card.add(lblValue, BorderLayout.CENTER);
-        card.add(bar, BorderLayout.WEST);
+
+        valueLabel.setFont(new Font(ini.font, Font.BOLD, 24));
+        valueLabel.setForeground(Color.DARK_GRAY);
+
+        textPanel.add(lblTitle);
+        textPanel.add(Box.createRigidArea(new Dimension(0, 5)));
+        textPanel.add(valueLabel);
+
+        card.add(textPanel, BorderLayout.CENTER);
+        card.add(iconLabel, BorderLayout.EAST);
+
         return card;
     }
 }

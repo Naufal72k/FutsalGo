@@ -45,22 +45,22 @@ public class BookingsTableModel extends AbstractTableModel {
 
         switch (column) {
             case 0:
-                return booking.getId();
+
+                return String.format("FutsalGo-T-%03d", booking.getId());
             case 1:
                 return booking.getBookingDate();
             case 2:
                 return booking.getFieldId();
             case 3:
-                // Hanya tampilkan jam:menit (HH:MM)
+
                 return booking.getStartTime().substring(0, 5);
             case 4:
-                // Hanya tampilkan jam:menit (HH:MM)
+
                 return booking.getEndTime().substring(0, 5);
             case 5:
-                // Format harga dengan mata uang Rupiah
+
                 return String.format("Rp %,d", (int) booking.getTotalPrice());
             case 6:
-                // Poin Kunci: Mengembalikan STATUS MURNI (String) untuk Color Coding
                 return booking.getStatus();
             default:
                 return null;

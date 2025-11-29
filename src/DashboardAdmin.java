@@ -176,7 +176,7 @@ public class DashboardAdmin extends JPanel {
 
             // Auto refresh logic based on panel
             if (panelKey.equals("dashboard"))
-                refreshDashboardStats(); // UPDATE: Realtime refresh stats
+                refreshDashboardStats();
             if (panelKey.equals("bookings"))
                 refreshBookingsTable();
             if (panelKey.equals("fields"))
@@ -202,7 +202,7 @@ public class DashboardAdmin extends JPanel {
         return btn;
     }
 
-    // --- PANEL DASHBOARD UTAMA (RE-DESIGNED) ---
+    // --- PANEL DASHBOARD UTAMA ---
     private JPanel createDashboardPanel() {
         JPanel panel = new JPanel(new BorderLayout());
         panel.setBackground(colorUtamaLembut);
@@ -258,7 +258,7 @@ public class DashboardAdmin extends JPanel {
         mainContent.add(tableTitle);
         mainContent.add(Box.createRigidArea(new Dimension(0, 15)));
 
-        String[] cols = { "Date", "User ID", "Field", "Time", "Price", "Status" };
+        String[] cols = { "Date", "User", "Field", "Time", "Price", "Status" };
         recentTransModel = new DefaultTableModel(cols, 0);
         JTable recentTable = new JTable(recentTransModel);
         recentTable.setRowHeight(35);
@@ -274,7 +274,6 @@ public class DashboardAdmin extends JPanel {
         return panel;
     }
 
-    // UPDATE: Method untuk refresh realtime statistik
     private void refreshDashboardStats() {
         // Fetch data
         Map<String, Object> stats = dbService.getDashboardStats();
@@ -297,7 +296,9 @@ public class DashboardAdmin extends JPanel {
             for (int i = 0; i < limit; i++) {
                 Booking b = all.get(i);
                 recentTransModel.addRow(new Object[] {
-                        b.getBookingDate(), b.getUserId(), b.getFieldId(),
+                        b.getBookingDate(),
+                        b.getUserName(),
+                        b.getFieldName(),
                         b.getStartTime().substring(0, 5),
                         String.format("Rp %,.0f", b.getTotalPrice()),
                         b.getStatus()
@@ -465,7 +466,7 @@ public class DashboardAdmin extends JPanel {
         }
     }
 
-    // --- MANAGE BOOKINGS PANEL (UPDATE: ACCEPT BUTTON) ---
+    // --- MANAGE BOOKINGS PANEL (UPDATE: FORMAT KEREN + NAMA ASLI) ---
     private JPanel createManageBookingsPanel() {
         JPanel panel = new JPanel(new BorderLayout());
         panel.setBackground(colorUtamaLembut);
@@ -485,21 +486,18 @@ public class DashboardAdmin extends JPanel {
         JPanel actionPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT));
         actionPanel.setOpaque(false);
 
-        // Tombol APPROVE (Baru)
         JButton btnApprove = new JButton("✓ Accept / Approve");
         btnApprove.setBackground(new Color(46, 204, 113)); // Hijau
         btnApprove.setForeground(Color.WHITE);
         btnApprove.setFocusPainted(false);
         btnApprove.addActionListener(e -> approveSelectedBooking());
 
-        // Tombol REJECT
         JButton btnCancel = new JButton("✕ Reject / Cancel");
         btnCancel.setBackground(new Color(231, 76, 60)); // Merah
         btnCancel.setForeground(Color.WHITE);
         btnCancel.setFocusPainted(false);
         btnCancel.addActionListener(e -> cancelSelectedBooking());
 
-        // Tombol MANUAL BOOKING
         JButton btnManual = new JButton("+ Manual Booking");
         btnManual.setBackground(colorIsi);
         btnManual.setForeground(Color.BLACK);
@@ -509,7 +507,7 @@ public class DashboardAdmin extends JPanel {
         JButton btnRefresh = new JButton("Refresh");
         btnRefresh.addActionListener(e -> refreshBookingsTable());
 
-        actionPanel.add(btnApprove); // Tambah tombol approve
+        actionPanel.add(btnApprove);
         actionPanel.add(btnCancel);
         actionPanel.add(btnManual);
         actionPanel.add(btnRefresh);
@@ -517,8 +515,8 @@ public class DashboardAdmin extends JPanel {
 
         panel.add(headerPanel, BorderLayout.NORTH);
 
-        // Tabel Data
-        String[] columns = { "Booking ID", "User ID", "Field ID", "Date", "Start Time", "Total Price", "Status" };
+        // Tabel Data - UPDATE HEADER KOLOM (User Name & Field Name)
+        String[] columns = { "Booking ID", "User Name", "Field Name", "Date", "Start Time", "Total Price", "Status" };
         bookingsModel = new DefaultTableModel(columns, 0) {
             @Override
             public boolean isCellEditable(int row, int column) {
@@ -545,10 +543,13 @@ public class DashboardAdmin extends JPanel {
         bookingsModel.setRowCount(0);
         List<Booking> bookings = dbService.getAllBookings();
         for (Booking b : bookings) {
+            // FORMAT ID KEREN (misal: FutsalGo-T-001)
+            String formattedId = String.format("FutsalGo-T-%03d", b.getId());
+
             bookingsModel.addRow(new Object[] {
-                    b.getId(),
-                    b.getUserId(),
-                    b.getFieldId(),
+                    formattedId, // Tampilkan ID Keren (String)
+                    b.getUserName(), // Tampilkan Nama User Asli
+                    b.getFieldName(), // Tampilkan Nama Lapangan Asli
                     b.getBookingDate(),
                     b.getStartTime().substring(0, 5),
                     String.format("Rp %,.0f", b.getTotalPrice()),
@@ -566,7 +567,11 @@ public class DashboardAdmin extends JPanel {
             return;
         }
 
-        int bookingId = (int) bookingsModel.getValueAt(selectedRow, 0);
+        // AMBIL ID STRING (FutsalGo-T-001) DAN PARSE KEMBALI KE INT
+        String idStr = (String) bookingsModel.getValueAt(selectedRow, 0);
+        // Hapus prefix "FutsalGo-T-" untuk dapatkan angka ID asli
+        int bookingId = Integer.parseInt(idStr.replace("FutsalGo-T-", ""));
+
         String currentStatus = (String) bookingsModel.getValueAt(selectedRow, 6);
 
         if ("PAID".equals(currentStatus)) {
@@ -603,7 +608,10 @@ public class DashboardAdmin extends JPanel {
             return;
         }
 
-        int bookingId = (int) bookingsModel.getValueAt(selectedRow, 0);
+        // AMBIL ID STRING (FutsalGo-T-001) DAN PARSE KEMBALI KE INT
+        String idStr = (String) bookingsModel.getValueAt(selectedRow, 0);
+        int bookingId = Integer.parseInt(idStr.replace("FutsalGo-T-", ""));
+
         String currentStatus = (String) bookingsModel.getValueAt(selectedRow, 6);
 
         if ("CANCELLED".equals(currentStatus)) {
@@ -626,7 +634,7 @@ public class DashboardAdmin extends JPanel {
         }
     }
 
-    // --- MANUAL BOOKING DIALOG (FIXED STATUS PAID) ---
+    // --- MANUAL BOOKING DIALOG ---
     private void showManualBookingDialog() {
         JDialog dialog = new JDialog((Frame) SwingUtilities.getWindowAncestor(this), "Add Manual Booking", true);
         dialog.setSize(500, 600);

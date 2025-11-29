@@ -222,20 +222,54 @@ public class DatabaseConfig {
       return bookings;
    }
 
+   // --- NEW METHOD: Count Paid Bookings for specific user ---
+   public int countUserPaidBookings(int userId) {
+      String sql = "SELECT COUNT(*) FROM bookings WHERE user_id = ? AND status = 'PAID'";
+      try (Connection conn = getConnection();
+            PreparedStatement pstmt = conn.prepareStatement(sql)) {
+         pstmt.setInt(1, userId);
+         ResultSet rs = pstmt.executeQuery();
+         if (rs.next()) {
+            return rs.getInt(1);
+         }
+      } catch (SQLException e) {
+         e.printStackTrace();
+      }
+      return 0;
+   }
+
    // =========================================================================
    // 4. ADMIN & REPORTING (UPDATED: Strict Status Checks)
    // =========================================================================
 
    public List<Booking> getAllBookings() {
       List<Booking> bookings = new ArrayList<>();
-      // Menampilkan semua booking (Pending, Paid, Cancelled) agar Admin bisa
-      // Approve/Reject
-      String sql = "SELECT * FROM bookings ORDER BY booking_date DESC, start_time DESC";
+      // UPDATE: Menggunakan JOIN untuk mengambil nama user dan nama lapangan
+      // Ini agar tabel Admin bisa menampilkan informasi yang lebih manusiawi
+      String sql = "SELECT b.*, u.username, f.field_name " +
+            "FROM bookings b " +
+            "JOIN users u ON b.user_id = u.id " +
+            "JOIN futsal_fields f ON b.field_id = f.id " +
+            "ORDER BY b.booking_date DESC, b.start_time DESC";
+
       try (Connection conn = getConnection();
             Statement stmt = conn.createStatement();
             ResultSet rs = stmt.executeQuery(sql)) {
          while (rs.next()) {
-            bookings.add(mapResultSetToBooking(rs));
+            // Menggunakan Constructor Baru Booking yang menerima userName & fieldName
+            Booking b = new Booking(
+                  rs.getInt("id"),
+                  rs.getInt("user_id"),
+                  rs.getString("username"), // Kolom dari JOIN users
+                  rs.getInt("field_id"),
+                  rs.getString("field_name"), // Kolom dari JOIN futsal_fields
+                  rs.getString("booking_date"),
+                  rs.getString("start_time"),
+                  rs.getString("end_time"),
+                  rs.getDouble("total_price"),
+                  rs.getString("status"),
+                  rs.getString("created_at"));
+            bookings.add(b);
          }
       } catch (SQLException e) {
          e.printStackTrace();
