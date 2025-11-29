@@ -6,7 +6,11 @@ public class Booking {
     private String startTime;
     private String endTime;
     private double totalPrice;
-    private String status;
+
+    // UPDATE: Default status langsung "PAID"
+    // karena user wajib lewati Scan QR sebelum objek ini dibuat.
+    private String status = "PAID";
+
     private String createdAt;
 
     public Booking() {

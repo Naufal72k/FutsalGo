@@ -15,7 +15,7 @@ public class RegisterPanel extends JPanel {
 
       JPanel mainPanel = new JPanel(new BorderLayout());
       mainPanel.setBackground(Color.decode(ini.warna_pelengkap));
-      mainPanel.setPreferredSize(new Dimension(ini.lebar, ini.tinggi)); 
+      mainPanel.setPreferredSize(new Dimension(ini.lebar, ini.tinggi));
 
       add(mainPanel);
 
@@ -24,10 +24,9 @@ public class RegisterPanel extends JPanel {
       headerLayeredPane.setPreferredSize(new Dimension(ini.tinggi, 200));
 
       JLabel backgroundLabel = new JLabel(new ImageIcon(
-               new ImageIcon("assets/images/img-header.png")
-                     .getImage()
-                     .getScaledInstance(ini.lebar, 200, Image.SCALE_SMOOTH)
-      ));
+            new ImageIcon("assets/images/img-header.png")
+                  .getImage()
+                  .getScaledInstance(ini.lebar, 200, Image.SCALE_SMOOTH)));
       backgroundLabel.setBounds(0, 0, ini.lebar, 200);
 
       // teks Header
@@ -58,7 +57,7 @@ public class RegisterPanel extends JPanel {
       formPanel.setLayout(new BoxLayout(formPanel, BoxLayout.Y_AXIS));
       formPanel.setMaximumSize(new Dimension(460, 300));
 
-      // Username 
+      // Username
       JPanel usernameRow = new JPanel();
       usernameRow.setOpaque(false);
       usernameRow.setLayout(new BoxLayout(usernameRow, BoxLayout.X_AXIS));
@@ -80,7 +79,7 @@ public class RegisterPanel extends JPanel {
       usernameRow.add(Box.createRigidArea(new Dimension(15, 0))); // X Gap
       usernameRow.add(usernameField);
 
-      // Email 
+      // Email
       JPanel emailRow = new JPanel();
       emailRow.setOpaque(false);
       emailRow.setLayout(new BoxLayout(emailRow, BoxLayout.X_AXIS));
@@ -124,7 +123,7 @@ public class RegisterPanel extends JPanel {
       passwordRow.add(Box.createRigidArea(new Dimension(15, 0)));
       passwordRow.add(passwordField);
 
-      // Confirm Password 
+      // Confirm Password
       JPanel confirmPasswordRow = new JPanel();
       confirmPasswordRow.setOpaque(false);
       confirmPasswordRow.setLayout(new BoxLayout(confirmPasswordRow, BoxLayout.X_AXIS));
@@ -154,7 +153,7 @@ public class RegisterPanel extends JPanel {
       formPanel.add(Box.createRigidArea(new Dimension(0, 15)));
       formPanel.add(confirmPasswordRow);
 
-      // BUTTON 
+      // BUTTON
       JPanel buttonPanel = new JPanel(new FlowLayout());
       buttonPanel.setOpaque(false);
       buttonPanel.setBorder(BorderFactory.createEmptyBorder(20, 0, 0, 0));
@@ -212,22 +211,21 @@ public class RegisterPanel extends JPanel {
       }
 
       if (password.length() < 6) {
-         JOptionPane.showMessageDialog(this, "Password must be at least 6 characters", "Error", JOptionPane.ERROR_MESSAGE);
+         JOptionPane.showMessageDialog(this, "Password must be at least 6 characters", "Error",
+               JOptionPane.ERROR_MESSAGE);
          return;
       }
 
       new Thread(() -> {
          if (userService.isUsernameExists(username)) {
-            SwingUtilities.invokeLater(() ->
-               JOptionPane.showMessageDialog(RegisterPanel.this, "Username already exists", "Error", JOptionPane.ERROR_MESSAGE)
-            );
+            SwingUtilities.invokeLater(() -> JOptionPane.showMessageDialog(RegisterPanel.this,
+                  "Username already exists", "Error", JOptionPane.ERROR_MESSAGE));
             return;
          }
 
          if (userService.isEmailExists(email)) {
-            SwingUtilities.invokeLater(() ->
-               JOptionPane.showMessageDialog(RegisterPanel.this, "Email already exists", "Error", JOptionPane.ERROR_MESSAGE)
-            );
+            SwingUtilities.invokeLater(() -> JOptionPane.showMessageDialog(RegisterPanel.this, "Email already exists",
+                  "Error", JOptionPane.ERROR_MESSAGE));
             return;
          }
 
@@ -235,10 +233,12 @@ public class RegisterPanel extends JPanel {
 
          SwingUtilities.invokeLater(() -> {
             if (success) {
-               JOptionPane.showMessageDialog(RegisterPanel.this, "Registration Success!", "Success", JOptionPane.INFORMATION_MESSAGE);
+               JOptionPane.showMessageDialog(RegisterPanel.this, "Registration Success!", "Success",
+                     JOptionPane.INFORMATION_MESSAGE);
                app.showLogin();
             } else {
-               JOptionPane.showMessageDialog(RegisterPanel.this, "Registration failed", "Error", JOptionPane.ERROR_MESSAGE);
+               JOptionPane.showMessageDialog(RegisterPanel.this, "Registration failed", "Error",
+                     JOptionPane.ERROR_MESSAGE);
             }
          });
       }).start();

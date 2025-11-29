@@ -15,11 +15,11 @@ public class LoginPanel extends JPanel {
 
    public LoginPanel(App app) {
       this.app = app;
-      
+
       // Panel utama
       JPanel mainPanel = new JPanel(new BorderLayout());
       mainPanel.setBackground(Color.decode(ini.warna_pelengkap));
-      mainPanel.setPreferredSize(new Dimension(ini.lebar, ini.tinggi)); 
+      mainPanel.setPreferredSize(new Dimension(ini.lebar, ini.tinggi));
 
       add(mainPanel);
 
@@ -29,10 +29,9 @@ public class LoginPanel extends JPanel {
 
       // gambar Header
       JLabel backgroundLabel = new JLabel(new ImageIcon(
-               new ImageIcon("assets/images/img-header.png")
-                     .getImage()
-                     .getScaledInstance(ini.lebar, 200, Image.SCALE_SMOOTH)
-      ));
+            new ImageIcon("assets/images/img-header.png")
+                  .getImage()
+                  .getScaledInstance(ini.lebar, 200, Image.SCALE_SMOOTH)));
       backgroundLabel.setBounds(0, 0, ini.lebar, 200);
 
       // teks Header
@@ -111,7 +110,7 @@ public class LoginPanel extends JPanel {
 
       // Add rows to the form
       formPanel.add(usernameRow);
-      formPanel.add(Box.createRigidArea(new Dimension(0, 15))); 
+      formPanel.add(Box.createRigidArea(new Dimension(0, 15)));
       formPanel.add(passwordRow);
 
       // Button Panel
