@@ -4,6 +4,10 @@ import javax.swing.border.EmptyBorder;
 import java.awt.*;
 import java.awt.event.*;
 import java.text.SimpleDateFormat;
+import java.time.Duration;
+import java.time.LocalDate;
+import java.time.LocalTime;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.Date;
@@ -26,12 +30,14 @@ public class DashboardAdmin extends JPanel {
     private Color colorIsi;
 
     // Components for Dashboard (Live Update)
-    private JLabel lblValBookings, lblValUsers, lblValFields, lblValRevenue;
+    // [UPDATE] Hanya menggunakan lblValRevenueTotal (Today dihapus)
+    private JLabel lblValBookings, lblValUsers, lblValFields, lblValRevenueTotal;
     private DefaultTableModel recentTransModel;
 
     // Components for Manage Bookings
     private DefaultTableModel bookingsModel;
     private JTable bookingsTable;
+    private Timer bookingTimer; // Timer untuk refresh waktu otomatis
 
     // Components for Manual Booking Dialog
     private JPanel adminTimeGridPanel;
@@ -87,6 +93,10 @@ public class DashboardAdmin extends JPanel {
 
         // Load data awal dashboard
         refreshDashboardStats();
+
+        // Jalankan Timer setiap 60 detik (60000 ms) untuk update kolom "Time Left"
+        bookingTimer = new Timer(60000, e -> updateTimeLeftColumn());
+        bookingTimer.start();
     }
 
     private JPanel createSidebar() {
@@ -145,8 +155,11 @@ public class DashboardAdmin extends JPanel {
         logoutBtn.addActionListener(e -> {
             int choice = JOptionPane.showConfirmDialog(this, "Apakah Anda yakin ingin logout?", "Konfirmasi Logout",
                     JOptionPane.YES_NO_OPTION);
-            if (choice == JOptionPane.YES_OPTION)
+            if (choice == JOptionPane.YES_OPTION) {
+                if (bookingTimer != null)
+                    bookingTimer.stop(); // Stop timer saat logout
                 app.showLogin();
+            }
         });
 
         sidebar.add(logoutBtn);
@@ -177,8 +190,10 @@ public class DashboardAdmin extends JPanel {
             // Auto refresh logic based on panel
             if (panelKey.equals("dashboard"))
                 refreshDashboardStats();
-            if (panelKey.equals("bookings"))
+            if (panelKey.equals("bookings")) {
                 refreshBookingsTable();
+                updateTimeLeftColumn(); // Update waktu langsung saat masuk panel
+            }
             if (panelKey.equals("fields"))
                 refreshFieldsTable();
             if (panelKey.equals("transactions"))
@@ -202,12 +217,11 @@ public class DashboardAdmin extends JPanel {
         return btn;
     }
 
-    // --- PANEL DASHBOARD UTAMA ---
+    // --- PANEL DASHBOARD UTAMA (UPDATED: TOTAL REVENUE ONLY) ---
     private JPanel createDashboardPanel() {
         JPanel panel = new JPanel(new BorderLayout());
         panel.setBackground(colorUtamaLembut);
 
-        // ScrollPane agar responsif jika layar kecil
         JPanel mainContent = new JPanel();
         mainContent.setLayout(new BoxLayout(mainContent, BoxLayout.Y_AXIS));
         mainContent.setBackground(colorUtamaLembut);
@@ -229,27 +243,29 @@ public class DashboardAdmin extends JPanel {
         mainContent.add(dateLabel);
         mainContent.add(Box.createRigidArea(new Dimension(0, 30)));
 
-        // 2. Stats Grid (Kartu Besar)
-        JPanel statsGrid = new JPanel(new GridLayout(1, 4, 20, 0)); // 1 Baris 4 Kolom
+        // 2. Stats Grid [UPDATE: Kembali ke 4 Kolom, Ganti Revenue Today jadi Total]
+        JPanel statsGrid = new JPanel(new GridLayout(1, 4, 20, 0));
         statsGrid.setBackground(colorUtamaLembut);
-        statsGrid.setMaximumSize(new Dimension(2000, 140)); // Tinggi tetap
+        statsGrid.setMaximumSize(new Dimension(2000, 140));
         statsGrid.setAlignmentX(Component.LEFT_ALIGNMENT);
 
-        // Init Labels (akan diisi via refreshDashboardStats)
+        // Init Labels
         lblValBookings = new JLabel("0");
         lblValUsers = new JLabel("0");
         lblValFields = new JLabel("0");
-        lblValRevenue = new JLabel("Rp 0");
+        lblValRevenueTotal = new JLabel("Rp 0"); // Total Revenue
 
-        statsGrid.add(createBigStatCard("Total Paid Bookings", lblValBookings, "📅", new Color(52, 152, 219)));
-        statsGrid.add(createBigStatCard("Registered Users", lblValUsers, "👥", new Color(46, 204, 113)));
+        // Kartu Statistik
+        statsGrid.add(createBigStatCard("Paid Bookings", lblValBookings, "📅", new Color(52, 152, 219)));
+        statsGrid.add(createBigStatCard("Users", lblValUsers, "👥", new Color(46, 204, 113)));
         statsGrid.add(createBigStatCard("Active Fields", lblValFields, "⚽", new Color(155, 89, 182)));
-        statsGrid.add(createBigStatCard("Revenue (Today)", lblValRevenue, "💰", new Color(241, 196, 15)));
+        // [UPDATE] Kartu Terakhir adalah Total Revenue
+        statsGrid.add(createBigStatCard("Total Revenue", lblValRevenueTotal, "💰", new Color(241, 196, 15)));
 
         mainContent.add(statsGrid);
         mainContent.add(Box.createRigidArea(new Dimension(0, 40)));
 
-        // 3. Recent Transactions Table (Preview)
+        // 3. Recent Transactions Table
         JLabel tableTitle = new JLabel("Recent Transactions");
         tableTitle.setFont(new Font(tema.font, Font.BOLD, 18));
         tableTitle.setForeground(Color.WHITE);
@@ -262,7 +278,7 @@ public class DashboardAdmin extends JPanel {
         recentTransModel = new DefaultTableModel(cols, 0);
         JTable recentTable = new JTable(recentTransModel);
         recentTable.setRowHeight(35);
-        recentTable.setEnabled(false); // Read only
+        recentTable.setEnabled(false);
 
         JScrollPane scrollTable = new JScrollPane(recentTable);
         scrollTable.setPreferredSize(new Dimension(0, 250));
@@ -275,33 +291,28 @@ public class DashboardAdmin extends JPanel {
     }
 
     private void refreshDashboardStats() {
-        // Fetch data
         Map<String, Object> stats = dbService.getDashboardStats();
-
-        // Update Labels
         if (lblValBookings != null)
             lblValBookings.setText(stats.get("TotalBookings").toString());
         if (lblValUsers != null)
             lblValUsers.setText(stats.get("TotalUsers").toString());
         if (lblValFields != null)
             lblValFields.setText(stats.get("ActiveFields").toString());
-        if (lblValRevenue != null)
-            lblValRevenue.setText(String.format("Rp %,.0f", (Double) stats.get("RevenueToday")));
 
-        // Update Recent Table (Ambil 5 teratas)
+        // [UPDATE] Menggunakan TotalRevenueAllTime dari DatabaseConfig
+        if (lblValRevenueTotal != null)
+            lblValRevenueTotal.setText(String.format("Rp %,.0f", (Double) stats.get("TotalRevenueAllTime")));
+
         if (recentTransModel != null) {
             recentTransModel.setRowCount(0);
-            List<Booking> all = dbService.getAllBookings(); // Sudah sort DESC
+            List<Booking> all = dbService.getAllBookings();
             int limit = Math.min(all.size(), 5);
             for (int i = 0; i < limit; i++) {
                 Booking b = all.get(i);
                 recentTransModel.addRow(new Object[] {
-                        b.getBookingDate(),
-                        b.getUserName(),
-                        b.getFieldName(),
+                        b.getBookingDate(), b.getUserName(), b.getFieldName(),
                         b.getStartTime().substring(0, 5),
-                        String.format("Rp %,.0f", b.getTotalPrice()),
-                        b.getStatus()
+                        String.format("Rp %,.0f", b.getTotalPrice()), b.getStatus()
                 });
             }
         }
@@ -313,7 +324,6 @@ public class DashboardAdmin extends JPanel {
         panel.setBackground(colorUtamaLembut);
         panel.setBorder(BorderFactory.createEmptyBorder(30, 30, 30, 30));
 
-        // Header
         JPanel header = new JPanel(new BorderLayout());
         header.setBackground(colorUtamaLembut);
         JLabel title = new JLabel("Manage Fields");
@@ -343,14 +353,12 @@ public class DashboardAdmin extends JPanel {
         header.add(actionPanel, BorderLayout.EAST);
         panel.add(header, BorderLayout.NORTH);
 
-        // Table
         String[] cols = { "ID", "Name", "Open", "Close", "Price", "Status" };
         fieldsModel = new DefaultTableModel(cols, 0);
         fieldsTable = new JTable(fieldsModel);
         fieldsTable.setRowHeight(35);
 
         panel.add(new JScrollPane(fieldsTable), BorderLayout.CENTER);
-
         return panel;
     }
 
@@ -398,14 +406,11 @@ public class DashboardAdmin extends JPanel {
             try {
                 String name = txtName.getText();
                 double price = Double.parseDouble(txtPrice.getText());
-
-                // Validasi nama kembar
                 int currentId = (fieldToEdit != null) ? fieldToEdit.getId() : -1;
                 if (dbService.isFieldNameExists(name, currentId)) {
                     JOptionPane.showMessageDialog(d, "Nama lapangan sudah ada!", "Error", JOptionPane.ERROR_MESSAGE);
                     return;
                 }
-
                 FutsalField f = new FutsalField();
                 f.setFieldName(name);
                 f.setOpenTime(txtOpen.getText());
@@ -414,24 +419,21 @@ public class DashboardAdmin extends JPanel {
                 f.setActive(chkActive.isSelected());
 
                 boolean success;
-                if (fieldToEdit == null) {
+                if (fieldToEdit == null)
                     success = dbService.addField(f);
-                } else {
+                else {
                     f.setId(fieldToEdit.getId());
                     success = dbService.updateField(f);
                 }
-
                 if (success) {
                     refreshFieldsTable();
                     d.dispose();
-                } else {
+                } else
                     JOptionPane.showMessageDialog(d, "Gagal menyimpan data.");
-                }
             } catch (Exception ex) {
                 JOptionPane.showMessageDialog(d, "Input tidak valid: " + ex.getMessage());
             }
         });
-
         d.add(p, BorderLayout.CENTER);
         d.add(btnSave, BorderLayout.SOUTH);
         d.setVisible(true);
@@ -442,7 +444,6 @@ public class DashboardAdmin extends JPanel {
         if (row == -1)
             return;
         int id = (int) fieldsTable.getValueAt(row, 0);
-
         List<FutsalField> list = dbService.getAllFields();
         for (FutsalField f : list) {
             if (f.getId() == id) {
@@ -457,22 +458,20 @@ public class DashboardAdmin extends JPanel {
         if (row == -1)
             return;
         int id = (int) fieldsTable.getValueAt(row, 0);
-
-        int confirm = JOptionPane.showConfirmDialog(this, "Yakin hapus lapangan ini? History booking mungkin hilang.",
-                "Konfirmasi", JOptionPane.YES_NO_OPTION);
+        int confirm = JOptionPane.showConfirmDialog(this, "Yakin hapus? History booking mungkin hilang.", "Konfirmasi",
+                JOptionPane.YES_NO_OPTION);
         if (confirm == JOptionPane.YES_OPTION) {
             if (dbService.deleteField(id))
                 refreshFieldsTable();
         }
     }
 
-    // --- MANAGE BOOKINGS PANEL (UPDATE: FORMAT KEREN + NAMA ASLI) ---
+    // --- MANAGE BOOKINGS PANEL (UPDATED: COLUMN TIME LEFT) ---
     private JPanel createManageBookingsPanel() {
         JPanel panel = new JPanel(new BorderLayout());
         panel.setBackground(colorUtamaLembut);
         panel.setBorder(BorderFactory.createEmptyBorder(30, 30, 30, 30));
 
-        // Header
         JPanel headerPanel = new JPanel(new BorderLayout());
         headerPanel.setBackground(colorUtamaLembut);
         headerPanel.setBorder(BorderFactory.createEmptyBorder(0, 0, 20, 0));
@@ -482,18 +481,17 @@ public class DashboardAdmin extends JPanel {
         titleLabel.setForeground(Color.WHITE);
         headerPanel.add(titleLabel, BorderLayout.WEST);
 
-        // Tombol Action Container
         JPanel actionPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT));
         actionPanel.setOpaque(false);
 
         JButton btnApprove = new JButton("✓ Accept / Approve");
-        btnApprove.setBackground(new Color(46, 204, 113)); // Hijau
+        btnApprove.setBackground(new Color(46, 204, 113));
         btnApprove.setForeground(Color.WHITE);
         btnApprove.setFocusPainted(false);
         btnApprove.addActionListener(e -> approveSelectedBooking());
 
         JButton btnCancel = new JButton("✕ Reject / Cancel");
-        btnCancel.setBackground(new Color(231, 76, 60)); // Merah
+        btnCancel.setBackground(new Color(231, 76, 60));
         btnCancel.setForeground(Color.WHITE);
         btnCancel.setFocusPainted(false);
         btnCancel.addActionListener(e -> cancelSelectedBooking());
@@ -505,18 +503,21 @@ public class DashboardAdmin extends JPanel {
         btnManual.addActionListener(e -> showManualBookingDialog());
 
         JButton btnRefresh = new JButton("Refresh");
-        btnRefresh.addActionListener(e -> refreshBookingsTable());
+        btnRefresh.addActionListener(e -> {
+            refreshBookingsTable();
+            updateTimeLeftColumn(); // Update waktu setelah refresh
+        });
 
         actionPanel.add(btnApprove);
         actionPanel.add(btnCancel);
         actionPanel.add(btnManual);
         actionPanel.add(btnRefresh);
         headerPanel.add(actionPanel, BorderLayout.EAST);
-
         panel.add(headerPanel, BorderLayout.NORTH);
 
-        // Tabel Data - UPDATE HEADER KOLOM (User Name & Field Name)
-        String[] columns = { "Booking ID", "User Name", "Field Name", "Date", "Start Time", "Total Price", "Status" };
+        // Kolom "Time Left" ditambahkan
+        String[] columns = { "Booking ID", "User Name", "Field Name", "Date", "Start Time", "Total Price", "Status",
+                "Time Left" };
         bookingsModel = new DefaultTableModel(columns, 0) {
             @Override
             public boolean isCellEditable(int row, int column) {
@@ -531,34 +532,77 @@ public class DashboardAdmin extends JPanel {
         bookingsTable.getTableHeader().setBackground(colorUtama);
         bookingsTable.getTableHeader().setForeground(Color.WHITE);
 
-        JScrollPane scrollPane = new JScrollPane(bookingsTable);
-        scrollPane.setBorder(BorderFactory.createEmptyBorder());
-        panel.add(scrollPane, BorderLayout.CENTER);
+        // Atur lebar kolom Time Left agar terlihat jelas
+        bookingsTable.getColumnModel().getColumn(7).setPreferredWidth(150);
 
-        refreshBookingsTable(); // Load data awal
+        panel.add(new JScrollPane(bookingsTable), BorderLayout.CENTER);
+        refreshBookingsTable();
         return panel;
+    }
+
+    // Logika untuk menghitung sisa waktu secara Real-time
+    private void updateTimeLeftColumn() {
+        for (int i = 0; i < bookingsModel.getRowCount(); i++) {
+            try {
+                String dateStr = (String) bookingsModel.getValueAt(i, 3);
+                String startTimeStr = (String) bookingsModel.getValueAt(i, 4);
+                String status = (String) bookingsModel.getValueAt(i, 6);
+
+                // Format Waktu
+                LocalDate bookingDate = LocalDate.parse(dateStr);
+                LocalTime startTime = LocalTime.parse(startTimeStr);
+                LocalTime endTime = startTime.plusHours(1); // Asumsi 1 sesi = 1 jam
+
+                LocalDate today = LocalDate.now();
+                LocalTime now = LocalTime.now();
+
+                String timeStatus = "-";
+
+                // Jika Cancelled, tidak perlu hitung waktu
+                if ("CANCELLED".equalsIgnoreCase(status)) {
+                    timeStatus = "Cancelled";
+                }
+                // Jika tanggal BUKAN hari ini
+                else if (bookingDate.isAfter(today)) {
+                    timeStatus = "Upcoming";
+                } else if (bookingDate.isBefore(today)) {
+                    timeStatus = "Finished";
+                }
+                // Jika HARI INI
+                else {
+                    if (now.isBefore(startTime)) {
+                        long min = Duration.between(now, startTime).toMinutes();
+                        timeStatus = "Starts in " + min + " min";
+                    } else if (now.isAfter(startTime) && now.isBefore(endTime)) {
+                        long minLeft = Duration.between(now, endTime).toMinutes();
+                        timeStatus = "Playing (" + minLeft + " min left)";
+                    } else {
+                        timeStatus = "Finished";
+                    }
+                }
+
+                bookingsModel.setValueAt(timeStatus, i, 7);
+            } catch (Exception e) {
+                // Ignore parsing errors
+            }
+        }
     }
 
     private void refreshBookingsTable() {
         bookingsModel.setRowCount(0);
         List<Booking> bookings = dbService.getAllBookings();
         for (Booking b : bookings) {
-            // FORMAT ID KEREN (misal: FutsalGo-T-001)
             String formattedId = String.format("FutsalGo-T-%03d", b.getId());
-
             bookingsModel.addRow(new Object[] {
-                    formattedId, // Tampilkan ID Keren (String)
-                    b.getUserName(), // Tampilkan Nama User Asli
-                    b.getFieldName(), // Tampilkan Nama Lapangan Asli
-                    b.getBookingDate(),
-                    b.getStartTime().substring(0, 5),
-                    String.format("Rp %,.0f", b.getTotalPrice()),
-                    b.getStatus()
+                    formattedId, b.getUserName(), b.getFieldName(),
+                    b.getBookingDate(), b.getStartTime().substring(0, 5),
+                    String.format("Rp %,.0f", b.getTotalPrice()), b.getStatus(),
+                    "-" // Placeholder Time Left
             });
         }
+        updateTimeLeftColumn(); // Langsung hitung waktu saat refresh
     }
 
-    // LOGIC: APPROVE (Ubah status ke PAID)
     private void approveSelectedBooking() {
         int selectedRow = bookingsTable.getSelectedRow();
         if (selectedRow == -1) {
@@ -566,40 +610,27 @@ public class DashboardAdmin extends JPanel {
                     JOptionPane.WARNING_MESSAGE);
             return;
         }
-
-        // AMBIL ID STRING (FutsalGo-T-001) DAN PARSE KEMBALI KE INT
         String idStr = (String) bookingsModel.getValueAt(selectedRow, 0);
-        // Hapus prefix "FutsalGo-T-" untuk dapatkan angka ID asli
         int bookingId = Integer.parseInt(idStr.replace("FutsalGo-T-", ""));
-
         String currentStatus = (String) bookingsModel.getValueAt(selectedRow, 6);
 
-        if ("PAID".equals(currentStatus)) {
-            JOptionPane.showMessageDialog(this, "Booking sudah lunas (PAID).", "Info", JOptionPane.INFORMATION_MESSAGE);
+        if ("PAID".equals(currentStatus) || "CANCELLED".equals(currentStatus)) {
+            JOptionPane.showMessageDialog(this, "Tidak bisa ubah status yang sudah final.", "Info",
+                    JOptionPane.INFORMATION_MESSAGE);
             return;
         }
 
-        if ("CANCELLED".equals(currentStatus)) {
-            JOptionPane.showMessageDialog(this, "Tidak bisa approve booking yang sudah dibatalkan.", "Error",
-                    JOptionPane.ERROR_MESSAGE);
-            return;
-        }
-
-        int confirm = JOptionPane.showConfirmDialog(this,
-                "Terima pembayaran dan set status ke PAID?\nPendapatan akan bertambah.",
+        int confirm = JOptionPane.showConfirmDialog(this, "Terima pembayaran dan set status ke PAID?",
                 "Konfirmasi Approve", JOptionPane.YES_NO_OPTION);
-
         if (confirm == JOptionPane.YES_OPTION) {
             if (dbService.updateBookingStatus(bookingId, "PAID")) {
                 JOptionPane.showMessageDialog(this, "Booking berhasil di-approve!");
                 refreshBookingsTable();
-            } else {
+            } else
                 JOptionPane.showMessageDialog(this, "Gagal mengupdate status.", "Error", JOptionPane.ERROR_MESSAGE);
-            }
         }
     }
 
-    // LOGIC: REJECT (Ubah status ke CANCELLED)
     private void cancelSelectedBooking() {
         int selectedRow = bookingsTable.getSelectedRow();
         if (selectedRow == -1) {
@@ -607,30 +638,23 @@ public class DashboardAdmin extends JPanel {
                     JOptionPane.WARNING_MESSAGE);
             return;
         }
-
-        // AMBIL ID STRING (FutsalGo-T-001) DAN PARSE KEMBALI KE INT
         String idStr = (String) bookingsModel.getValueAt(selectedRow, 0);
         int bookingId = Integer.parseInt(idStr.replace("FutsalGo-T-", ""));
-
         String currentStatus = (String) bookingsModel.getValueAt(selectedRow, 6);
 
         if ("CANCELLED".equals(currentStatus)) {
-            JOptionPane.showMessageDialog(this, "Booking ini sudah dibatalkan sebelumnya.", "Info",
-                    JOptionPane.INFORMATION_MESSAGE);
+            JOptionPane.showMessageDialog(this, "Booking sudah dibatalkan.", "Info", JOptionPane.INFORMATION_MESSAGE);
             return;
         }
 
-        int confirm = JOptionPane.showConfirmDialog(this,
-                "Apakah Anda yakin ingin menolak/membatalkan booking ini?\nSlot jam akan kembali kosong.",
-                "Konfirmasi Pembatalan", JOptionPane.YES_NO_OPTION);
-
+        int confirm = JOptionPane.showConfirmDialog(this, "Yakin tolak/batalkan booking ini?", "Konfirmasi Pembatalan",
+                JOptionPane.YES_NO_OPTION);
         if (confirm == JOptionPane.YES_OPTION) {
             if (dbService.updateBookingStatus(bookingId, "CANCELLED")) {
                 JOptionPane.showMessageDialog(this, "Booking berhasil dibatalkan!");
                 refreshBookingsTable();
-            } else {
+            } else
                 JOptionPane.showMessageDialog(this, "Gagal mengupdate status.", "Error", JOptionPane.ERROR_MESSAGE);
-            }
         }
     }
 
@@ -645,21 +669,16 @@ public class DashboardAdmin extends JPanel {
         formPanel.setLayout(new BoxLayout(formPanel, BoxLayout.Y_AXIS));
         formPanel.setBorder(BorderFactory.createEmptyBorder(20, 20, 20, 20));
 
-        // 1. Pilih Field
         adminCmbField = new JComboBox<>();
         List<FutsalField> fields = dbService.getAllFields();
         for (FutsalField f : fields)
             if (f.isActive())
                 adminCmbField.addItem(f);
 
-        // 2. Pilih Tanggal
         adminSpinDate = new JSpinner(new SpinnerDateModel());
         adminSpinDate.setEditor(new JSpinner.DateEditor(adminSpinDate, "yyyy-MM-dd"));
 
-        // 3. Admin Grid Waktu
         adminTimeGridPanel = new JPanel(new GridLayout(4, 4, 5, 5));
-
-        // Listener Update Grid
         ActionListener updateGridListener = e -> updateAdminTimeSlots();
         adminCmbField.addActionListener(updateGridListener);
         adminSpinDate.addChangeListener(e -> updateAdminTimeSlots());
@@ -670,23 +689,17 @@ public class DashboardAdmin extends JPanel {
         formPanel.add(new JLabel("Select Date:"));
         formPanel.add(adminSpinDate);
         formPanel.add(Box.createRigidArea(new Dimension(0, 10)));
-        formPanel.add(new JLabel("Select Time Slots (Green = Available):"));
+        formPanel.add(new JLabel("Select Time Slots:"));
         formPanel.add(Box.createRigidArea(new Dimension(0, 5)));
         formPanel.add(adminTimeGridPanel);
 
-        // Tombol Save
         JButton btnSave = new JButton("Save Booking (Direct PAID)");
         btnSave.setBackground(colorIsi);
-        btnSave.addActionListener(e -> {
-            saveManualBooking(dialog);
-        });
+        btnSave.addActionListener(e -> saveManualBooking(dialog));
 
         dialog.add(formPanel, BorderLayout.CENTER);
         dialog.add(btnSave, BorderLayout.SOUTH);
-
-        // Init Grid Awal
         updateAdminTimeSlots();
-
         dialog.setVisible(true);
     }
 
@@ -694,25 +707,21 @@ public class DashboardAdmin extends JPanel {
         FutsalField selectedField = (FutsalField) adminCmbField.getSelectedItem();
         if (selectedField == null)
             return;
-
         Date dateVal = (Date) adminSpinDate.getValue();
-        SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd");
-        String dateStr = sdf.format(dateVal);
+        String dateStr = new SimpleDateFormat("yyyy-MM-dd").format(dateVal);
 
         adminTimeGridPanel.removeAll();
         adminSelectedSlots.clear();
-
         List<String> occupiedTimes = dbService.getOccupiedTimeSlots(selectedField.getId(), dateStr);
 
         for (int i = 8; i <= 22; i++) {
             String timeLabel = String.format("%02d:00", i);
             JToggleButton btn = new JToggleButton(timeLabel);
-
             if (occupiedTimes.contains(timeLabel)) {
-                btn.setBackground(new Color(255, 100, 100)); // Merah
+                btn.setBackground(new Color(255, 100, 100));
                 btn.setEnabled(false);
             } else {
-                btn.setBackground(new Color(150, 255, 150)); // Hijau
+                btn.setBackground(new Color(150, 255, 150));
                 btn.addActionListener(e -> {
                     if (btn.isSelected()) {
                         adminSelectedSlots.add(timeLabel);
@@ -735,12 +744,9 @@ public class DashboardAdmin extends JPanel {
                     JOptionPane.WARNING_MESSAGE);
             return;
         }
-
         FutsalField selectedField = (FutsalField) adminCmbField.getSelectedItem();
         Date selectedDate = (Date) adminSpinDate.getValue();
-        SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd");
-        String dateStr = dateFormat.format(selectedDate);
-
+        String dateStr = new SimpleDateFormat("yyyy-MM-dd").format(selectedDate);
         boolean allSuccess = true;
 
         for (String startTime : adminSelectedSlots) {
@@ -755,23 +761,17 @@ public class DashboardAdmin extends JPanel {
             b.setStartTime(startTimeStr);
             b.setEndTime(endTimeStr);
             b.setTotalPrice(selectedField.getPricePerSession());
-
-            // UPDATE: Manual Booking langsung PAID agar masuk revenue
             b.setStatus("PAID");
 
-            if (!dbService.createBooking(b)) {
+            if (!dbService.createBooking(b))
                 allSuccess = false;
-            }
         }
-
         if (allSuccess) {
-            JOptionPane.showMessageDialog(dialog, "Manual Booking Berhasil Disimpan (Status: PAID)!");
+            JOptionPane.showMessageDialog(dialog, "Manual Booking Berhasil Disimpan!");
             dialog.dispose();
             refreshBookingsTable();
-        } else {
-            JOptionPane.showMessageDialog(dialog, "Gagal menyimpan beberapa slot (Mungkin bentrok).", "Error",
-                    JOptionPane.ERROR_MESSAGE);
-        }
+        } else
+            JOptionPane.showMessageDialog(dialog, "Gagal menyimpan beberapa slot.", "Error", JOptionPane.ERROR_MESSAGE);
     }
 
     // --- TRANSACTIONS PANEL ---
@@ -780,13 +780,10 @@ public class DashboardAdmin extends JPanel {
         panel.setBackground(colorUtamaLembut);
         panel.setBorder(BorderFactory.createEmptyBorder(30, 30, 30, 30));
 
-        // Filter Bar
         JPanel filterPanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
         filterPanel.setOpaque(false);
-
         dateStartSpinner = new JSpinner(new SpinnerDateModel());
         dateStartSpinner.setEditor(new JSpinner.DateEditor(dateStartSpinner, "yyyy-MM-dd"));
-
         dateEndSpinner = new JSpinner(new SpinnerDateModel());
         dateEndSpinner.setEditor(new JSpinner.DateEditor(dateEndSpinner, "yyyy-MM-dd"));
 
@@ -799,31 +796,26 @@ public class DashboardAdmin extends JPanel {
         filterPanel.add(new JLabel(" To: "));
         filterPanel.add(dateEndSpinner);
         filterPanel.add(btnFilter);
-
         panel.add(filterPanel, BorderLayout.NORTH);
 
-        // Table
         String[] cols = { "Date", "Customer ID", "Field", "Time", "Price", "Status" };
         transModel = new DefaultTableModel(cols, 0);
         transTable = new JTable(transModel);
         transTable.setRowHeight(30);
         panel.add(new JScrollPane(transTable), BorderLayout.CENTER);
 
-        // Footer Total
         JPanel footer = new JPanel(new FlowLayout(FlowLayout.RIGHT));
         footer.setBackground(Color.WHITE);
         lblTotalRevenue = new JLabel("Total Revenue: Rp 0");
         lblTotalRevenue.setFont(new Font("Arial", Font.BOLD, 18));
         footer.add(lblTotalRevenue);
         panel.add(footer, BorderLayout.SOUTH);
-
         return panel;
     }
 
     private void loadTransactionData() {
         Date start = (Date) dateStartSpinner.getValue();
         Date end = (Date) dateEndSpinner.getValue();
-
         Calendar c = Calendar.getInstance();
         c.setTime(end);
         c.set(Calendar.HOUR_OF_DAY, 23);
@@ -833,16 +825,13 @@ public class DashboardAdmin extends JPanel {
         List<Booking> list = dbService.getTransactionsByDate(start, end);
         transModel.setRowCount(0);
         double total = 0;
-
         for (Booking b : list) {
-            if ("PAID".equals(b.getStatus())) {
+            if ("PAID".equals(b.getStatus()))
                 total += b.getTotalPrice();
-            }
             transModel.addRow(new Object[] {
                     b.getBookingDate(), b.getUserId(), b.getFieldId(),
                     b.getStartTime().substring(0, 5),
-                    String.format("Rp %,.0f", b.getTotalPrice()),
-                    b.getStatus()
+                    String.format("Rp %,.0f", b.getTotalPrice()), b.getStatus()
             });
         }
         lblTotalRevenue.setText(String.format("Total Revenue: Rp %,.0f", total));
@@ -864,23 +853,18 @@ public class DashboardAdmin extends JPanel {
         btnToggleShop = new JToggleButton("LOADING...");
         btnToggleShop.setFont(new Font("Arial", Font.BOLD, 24));
         btnToggleShop.setFocusPainted(false);
-
         btnToggleShop.addActionListener(e -> {
             boolean isOpen = btnToggleShop.isSelected();
             updateToggleVisual(isOpen);
             dbService.setFutsalStatus(isOpen);
         });
-
         lblShopStatus = new JLabel("Mengatur apakah user bisa booking atau tidak.", SwingConstants.CENTER);
 
         card.add(title, BorderLayout.NORTH);
         card.add(btnToggleShop, BorderLayout.CENTER);
         card.add(lblShopStatus, BorderLayout.SOUTH);
-
         panel.add(card);
-
         loadSettings();
-
         return panel;
     }
 
@@ -895,16 +879,15 @@ public class DashboardAdmin extends JPanel {
     private void updateToggleVisual(boolean isOpen) {
         if (isOpen) {
             btnToggleShop.setText("TOKO BUKA (OPEN)");
-            btnToggleShop.setBackground(new Color(46, 204, 113)); // Hijau
+            btnToggleShop.setBackground(new Color(46, 204, 113));
             btnToggleShop.setForeground(Color.WHITE);
         } else {
             btnToggleShop.setText("TOKO TUTUP (CLOSED)");
-            btnToggleShop.setBackground(new Color(231, 76, 60)); // Merah
+            btnToggleShop.setBackground(new Color(231, 76, 60));
             btnToggleShop.setForeground(Color.WHITE);
         }
     }
 
-    // --- HELPER UI: BIG STAT CARD ---
     private JPanel createBigStatCard(String title, JLabel valueLabel, String icon, Color accentColor) {
         JPanel card = new JPanel(new BorderLayout());
         card.setBackground(Color.WHITE);
@@ -912,11 +895,9 @@ public class DashboardAdmin extends JPanel {
                 BorderFactory.createMatteBorder(0, 0, 4, 0, accentColor),
                 BorderFactory.createEmptyBorder(15, 20, 15, 20)));
 
-        // Icon Area
         JLabel iconLabel = new JLabel(icon);
         iconLabel.setFont(new Font("Segoe UI Emoji", Font.PLAIN, 36));
 
-        // Text Area
         JPanel textPanel = new JPanel();
         textPanel.setLayout(new BoxLayout(textPanel, BoxLayout.Y_AXIS));
         textPanel.setBackground(Color.WHITE);
@@ -934,7 +915,6 @@ public class DashboardAdmin extends JPanel {
 
         card.add(textPanel, BorderLayout.CENTER);
         card.add(iconLabel, BorderLayout.EAST);
-
         return card;
     }
 }

@@ -113,12 +113,11 @@ public class DatabaseConfig {
    }
 
    // =========================================================================
-   // 3. BOOKING CORE (UPDATED: Handle Status & Time)
+   // 3. BOOKING CORE (UPDATED: TRANSACTION & RACE CONDITION FIX)
    // =========================================================================
 
    public List<String> getOccupiedTimeSlots(int fieldId, String date) {
       List<String> slots = new ArrayList<>();
-      // Mengambil slot yang statusnya PENDING atau PAID (agar tidak double book)
       String sql = "SELECT DATE_FORMAT(start_time, '%H:%i') as slot_time FROM bookings " +
             "WHERE field_id = ? AND booking_date = ? AND status IN ('PENDING', 'PAID') " +
             "ORDER BY start_time";
@@ -136,48 +135,101 @@ public class DatabaseConfig {
       return slots;
    }
 
-   // --- CREATE BOOKING ---
+   /**
+    * [UPDATE] Menggunakan TRANSAKSI DATABASE untuk mencegah Double Booking (Race
+    * Condition).
+    * Proses Cek Ketersediaan dan Insert Data dilakukan dalam satu koneksi yang
+    * terkunci.
+    */
    public boolean createBooking(Booking booking) {
-      // Pastikan format waktu pakai detik (HH:mm:ss)
       String startTimeFormatted = formatTimeStr(booking.getStartTime());
       String endTimeFormatted = formatTimeStr(booking.getEndTime());
 
-      // 1. Cek Ketersediaan (Guard)
-      boolean isAvailable = checkAvailability(
-            booking.getFieldId(),
-            booking.getBookingDate(),
-            startTimeFormatted,
-            endTimeFormatted);
+      // Query Cek: Hitung booking yang overlap
+      String checkSql = "SELECT COUNT(*) FROM bookings " +
+            "WHERE field_id = ? AND booking_date = ? " +
+            "AND status IN ('PAID', 'PENDING') " +
+            "AND (start_time < ? AND end_time > ?)";
 
-      if (!isAvailable) {
-         System.out.println("DEBUG: Slot " + startTimeFormatted + " taken/clash.");
-         return false;
-      }
+      String insertSql = "INSERT INTO bookings (user_id, field_id, booking_date, start_time, end_time, total_price, status) VALUES (?, ?, ?, ?, ?, ?, ?)";
 
-      // 2. Insert Data
-      // UPDATE: Status dimasukkan sesuai objek (User=PENDING, Admin=PAID)
-      String sql = "INSERT INTO bookings (user_id, field_id, booking_date, start_time, end_time, total_price, status) VALUES (?, ?, ?, ?, ?, ?, ?)";
-      try (Connection conn = getConnection();
-            PreparedStatement pstmt = conn.prepareStatement(sql)) {
-         pstmt.setInt(1, booking.getUserId());
-         pstmt.setInt(2, booking.getFieldId());
-         pstmt.setString(3, booking.getBookingDate());
-         pstmt.setString(4, startTimeFormatted);
-         pstmt.setString(5, endTimeFormatted);
-         pstmt.setDouble(6, booking.getTotalPrice());
-         pstmt.setString(7, booking.getStatus()); // Status PENDING/PAID
-         return pstmt.executeUpdate() > 0;
+      Connection conn = null;
+      PreparedStatement checkStmt = null;
+      PreparedStatement insertStmt = null;
+
+      try {
+         conn = getConnection();
+         // 1. MULAI TRANSAKSI (Matikan Auto-Commit)
+         conn.setAutoCommit(false);
+
+         // 2. CEK KETERSEDIAAN (Dalam Transaksi)
+         checkStmt = conn.prepareStatement(checkSql);
+         checkStmt.setInt(1, booking.getFieldId());
+         checkStmt.setString(2, booking.getBookingDate());
+         checkStmt.setString(3, endTimeFormatted);
+         checkStmt.setString(4, startTimeFormatted);
+
+         ResultSet rs = checkStmt.executeQuery();
+         if (rs.next() && rs.getInt(1) > 0) {
+            // JIKA SUDAH ADA YANG BOOKING DI DETIK YANG SAMA
+            conn.rollback(); // Batalkan transaksi
+            System.out.println("DEBUG: Slot Conflict Detected. Rollback transaction.");
+            return false;
+         }
+
+         // 3. INSERT DATA (Jika Aman)
+         insertStmt = conn.prepareStatement(insertSql);
+         insertStmt.setInt(1, booking.getUserId());
+         insertStmt.setInt(2, booking.getFieldId());
+         insertStmt.setString(3, booking.getBookingDate());
+         insertStmt.setString(4, startTimeFormatted);
+         insertStmt.setString(5, endTimeFormatted);
+         insertStmt.setDouble(6, booking.getTotalPrice());
+         insertStmt.setString(7, booking.getStatus());
+
+         int rows = insertStmt.executeUpdate();
+
+         if (rows > 0) {
+            // 4. KOMIT TRANSAKSI (Simpan Permanen)
+            conn.commit();
+            return true;
+         } else {
+            conn.rollback();
+            return false;
+         }
+
       } catch (SQLException e) {
          e.printStackTrace();
+         if (conn != null) {
+            try {
+               conn.rollback(); // Rollback jika ada error SQL
+            } catch (SQLException ex) {
+               ex.printStackTrace();
+            }
+         }
          return false;
+      } finally {
+         // Tutup semua resource dengan rapi
+         try {
+            if (checkStmt != null)
+               checkStmt.close();
+            if (insertStmt != null)
+               insertStmt.close();
+            if (conn != null) {
+               conn.setAutoCommit(true); // Kembalikan ke default
+               conn.close();
+            }
+         } catch (SQLException e) {
+            e.printStackTrace();
+         }
       }
    }
 
+   // Method checkAvailability biasa (untuk keperluan UI / non-transaksi)
    public boolean checkAvailability(int fieldId, String date, String startTime, String endTime) {
       String start = formatTimeStr(startTime);
       String end = formatTimeStr(endTime);
 
-      // Cek overlap dengan booking yang statusnya PENDING atau PAID
       String sql = "SELECT COUNT(*) FROM bookings " +
             "WHERE field_id = ? AND booking_date = ? " +
             "AND status IN ('PAID', 'PENDING') " +
@@ -222,7 +274,6 @@ public class DatabaseConfig {
       return bookings;
    }
 
-   // --- NEW METHOD: Count Paid Bookings for specific user ---
    public int countUserPaidBookings(int userId) {
       String sql = "SELECT COUNT(*) FROM bookings WHERE user_id = ? AND status = 'PAID'";
       try (Connection conn = getConnection();
@@ -239,13 +290,11 @@ public class DatabaseConfig {
    }
 
    // =========================================================================
-   // 4. ADMIN & REPORTING (UPDATED: Strict Status Checks)
+   // 4. ADMIN & REPORTING (UPDATED: TOTAL REVENUE ALL TIME)
    // =========================================================================
 
    public List<Booking> getAllBookings() {
       List<Booking> bookings = new ArrayList<>();
-      // UPDATE: Menggunakan JOIN untuk mengambil nama user dan nama lapangan
-      // Ini agar tabel Admin bisa menampilkan informasi yang lebih manusiawi
       String sql = "SELECT b.*, u.username, f.field_name " +
             "FROM bookings b " +
             "JOIN users u ON b.user_id = u.id " +
@@ -256,13 +305,12 @@ public class DatabaseConfig {
             Statement stmt = conn.createStatement();
             ResultSet rs = stmt.executeQuery(sql)) {
          while (rs.next()) {
-            // Menggunakan Constructor Baru Booking yang menerima userName & fieldName
             Booking b = new Booking(
                   rs.getInt("id"),
                   rs.getInt("user_id"),
-                  rs.getString("username"), // Kolom dari JOIN users
+                  rs.getString("username"),
                   rs.getInt("field_id"),
-                  rs.getString("field_name"), // Kolom dari JOIN futsal_fields
+                  rs.getString("field_name"),
                   rs.getString("booking_date"),
                   rs.getString("start_time"),
                   rs.getString("end_time"),
@@ -298,12 +346,11 @@ public class DatabaseConfig {
       return bookings;
    }
 
-   // METHOD BARU UNTUK UPDATE STATUS (ACCEPT / REJECT)
    public boolean updateBookingStatus(int bookingId, String status) {
       String sql = "UPDATE bookings SET status = ? WHERE id = ?";
       try (Connection conn = getConnection();
             PreparedStatement pstmt = conn.prepareStatement(sql)) {
-         pstmt.setString(1, status); // PAID atau CANCELLED
+         pstmt.setString(1, status);
          pstmt.setInt(2, bookingId);
          return pstmt.executeUpdate() > 0;
       } catch (SQLException e) {
@@ -312,45 +359,45 @@ public class DatabaseConfig {
       }
    }
 
-   // UPDATE: Statistik hanya menghitung yang statusnya 'PAID'
    public Map<String, Object> getDashboardStats() {
       Map<String, Object> stats = new HashMap<>();
 
-      // 1. Total Revenue: Hanya dari status PAID hari ini
-      String sqlRev = "SELECT IFNULL(SUM(total_price), 0) FROM bookings WHERE status = 'PAID' AND DATE(created_at) = CURDATE()";
+      // 1. Revenue Hari Ini
+      String sqlRevToday = "SELECT IFNULL(SUM(total_price), 0) FROM bookings WHERE status = 'PAID' AND DATE(created_at) = CURDATE()";
 
-      // 2. Total Bookings: Hanya hitung yang statusnya PAID (Total seumur hidup atau
-      // aktif)
-      // User request: Total Booking di dashboard harusnya 0 jika semua
-      // di-cancel/pending
+      // [BARU] 2. Revenue Total (Semua Waktu)
+      String sqlRevTotal = "SELECT IFNULL(SUM(total_price), 0) FROM bookings WHERE status = 'PAID'";
+
+      // 3. Total Booking (Paid)
       String sqlBook = "SELECT COUNT(*) FROM bookings WHERE status = 'PAID'";
 
-      // 3. Users: Hitung user level 'user'
+      // 4. Total User
       String sqlUser = "SELECT COUNT(*) FROM users WHERE user_level = 'user'";
 
-      // 4. Active Fields: Hitung field yang is_active = TRUE
+      // 5. Active Fields
       String sqlField = "SELECT COUNT(*) FROM futsal_fields WHERE is_active = TRUE";
 
       try (Connection conn = getConnection(); Statement stmt = conn.createStatement()) {
-         // Exec Total Bookings (Paid Only)
          ResultSet rs = stmt.executeQuery(sqlBook);
          if (rs.next())
             stats.put("TotalBookings", rs.getInt(1));
 
-         // Exec Total Users
          rs = stmt.executeQuery(sqlUser);
          if (rs.next())
             stats.put("TotalUsers", rs.getInt(1));
 
-         // Exec Active Fields (Realtime status)
          rs = stmt.executeQuery(sqlField);
          if (rs.next())
             stats.put("ActiveFields", rs.getInt(1));
 
-         // Exec Revenue Today (Paid Only)
-         rs = stmt.executeQuery(sqlRev);
+         rs = stmt.executeQuery(sqlRevToday);
          if (rs.next())
             stats.put("RevenueToday", rs.getDouble(1));
+
+         // [BARU] Eksekusi Query Total Revenue All Time
+         rs = stmt.executeQuery(sqlRevTotal);
+         if (rs.next())
+            stats.put("TotalRevenueAllTime", rs.getDouble(1));
 
       } catch (SQLException e) {
          e.printStackTrace();
